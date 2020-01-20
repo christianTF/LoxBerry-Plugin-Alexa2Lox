@@ -1,0 +1,7 @@
+#!/bin/bash
+
+sudo /etc/init.d/cups restart
+
+
+cp /tmp/.alexa.devicelist.json  $PDATA/.alexa.devicelist.json
+cp /tmp/.alexa.cookie  $PDATA/.alexa.cookie
