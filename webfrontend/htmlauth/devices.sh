@@ -1,9 +1,8 @@
-#!/bin/sh
+#!/bin/bash
 #
 
-
-home="/opt/loxberry/webfrontend/cgi/plugins/alex2lox"
-TMP="/tmp"
+. ./_plugindirs.sh
+home="$LBPHTMLAUTHDIR"
 
 jq -r '.devices[].accountName' /$TMP/.alexa.devicelist.json >  /$home/devices.conf
 

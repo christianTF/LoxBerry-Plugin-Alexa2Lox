@@ -1,6 +1,9 @@
-#!/bin/sh
+#!/bin/bash
 #
-home=/opt/loxberry/webfrontend/cgi/plugins/alex2lox
+
+. ./_plugindirs.sh
+home="$LBPHTMLAUTHDIR"
+
 Ram=/run/shm/alex2lox
 
 

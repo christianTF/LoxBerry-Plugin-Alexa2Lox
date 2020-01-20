@@ -1,7 +1,7 @@
 #!/bin/sh
-#
-home="/opt/loxberry/webfrontend/cgi/plugins/alex2lox"
-TMP="/tmp"
+
+. ./_plugindirs.sh
+home="$LBPHTMLAUTHDIR"
 DEVLIST=/$TMP/.alexa.devicelist.json
 COOKIE="/$TMP/.alexa.cookie"
 
@@ -10,7 +10,7 @@ if [ -d /run/shm/alex2lox/ ] ; then
 Ram=/run/shm/alex2lox
 echo "Verwende Ram Disk......"
 else
-Ram=/opt/loxberry/webfrontend/cgi/plugins/alex2lox
+Ram=$LBPHTMLAUTHDIR
 echo "Verwende Plugin Verzeichniss"
 fi
 
@@ -20,8 +20,8 @@ Data3=$3
 Data4=$4
 Data5=$5
 
-EMAIL=$( grep 'EMAIL=' /opt/loxberry/webfrontend/cgi/plugins/alex2lox/amazon.txt |/bin/sed 's/EMAIL=//g'  )
-PASSWORD=$( grep 'Passwort=' /opt/loxberry/webfrontend/cgi/plugins/alex2lox/amazon.txt |/bin/sed 's/Passwort=//g'  )
+EMAIL=$( grep 'EMAIL=' $LBPHTMLAUTHDIR/amazon.txt |/bin/sed 's/EMAIL=//g'  )
+PASSWORD=$( grep 'Passwort=' $LBPHTMLAUTHDIR/amazon.txt |/bin/sed 's/Passwort=//g'  )
 
 
 

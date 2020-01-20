@@ -1,6 +1,6 @@
-
-#!/bin/sh
-home=/opt/loxberry/webfrontend/cgi/plugins/alex2lox
+#!/bin/bash
+. ./_plugindirs.sh
+home="$LBPHTMLAUTHDIR"
 
 echo $home
 LOXIP=$( grep 'LOXIP=' $home/MS.conf |/bin/sed 's/LOXIP=//g'  )

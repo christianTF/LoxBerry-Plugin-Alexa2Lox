@@ -1,13 +1,13 @@
 #!/bin/sh
 #
-home=/opt/loxberry/webfrontend/cgi/plugins/alex2lox
+
+. ./_plugindirs.sh
+home="$LBPHTMLAUTHDIR"
 Ram=/run/shm/alex2lox
-Tmp=/tmp
 
-
-jq  '.[]?' /$Tmp/.alexa.IMPORTED.list >  /$Ram/IMPORTED
-jq  '.[]?' /$Tmp/.alexa.prime-sections.list >  /$Ram/prime-sections
-jq  '.[]?' /$Tmp/.alexa.PURCHASES.list >  /$Ram/PURCHASES
-jq  '.[]?' /$Tmp/.alexa.prime-playlist-browse-nodes.list >  /$Ram/PLAYLIST
+jq  '.[]?' /$TMP/.alexa.IMPORTED.list >  /$Ram/IMPORTED
+jq  '.[]?' /$TMP/.alexa.prime-sections.list >  /$Ram/prime-sections
+jq  '.[]?' /$TMP/.alexa.PURCHASES.list >  /$Ram/PURCHASES
+jq  '.[]?' /$TMP/.alexa.prime-playlist-browse-nodes.list >  /$Ram/PLAYLIST
 
 echo DONE....

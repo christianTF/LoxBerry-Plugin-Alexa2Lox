@@ -1,7 +1,6 @@
-#!/bin/sh
-#
-
-home="REPLACELBPHTMLAUTHDIR"
+#!/bin/bash
+. ./_plugindirs.sh
+home="$LBPHTMLAUTHDIR"
 
 unlink $home/alexa_remote_control.backup
 mv $home/alexa_remote_control.sh $home/alexa_remote_control.backup
