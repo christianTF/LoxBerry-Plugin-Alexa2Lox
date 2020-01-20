@@ -1,61 +1,15 @@
 #!/bin/sh
 #
-# Amazon Alexa Remote Control
+# Amazon Alexa Remote Control (PLAIN shell)
 #  alex(at)loetzimmer.de
 #
-# 2017-10-10: v0.1 initial release
-# 2017-10-11: v0.2 TuneIn Station Search
-# 2017-10-11: v0.2a commands on special device "ALL" are executed on all ECHO+WHA
-# 2017-10-16: v0.3 added playback of library tracks
-# 2017-10-24: v0.4 added playback information
-# 2017-11-21: v0.5 added Prime station and playlist
-# 2017-11-22: v0.6 added Prime historical queue and replaced getopts
-# 2017-11-25: v0.6a cURL is now configurable
-# 2017-11-25: v0.7 added multiroom create/delete, playback of library playlist
-# 2017-11-30: v0.7a added US config, fixed device names containing spaces
-# 2017-12-07: v0.7b added Bluetooth connect/disconnect
-# 2017-12-18: v0.7c fixed US version
-# 2017-12-19: v0.7d fixed AWK csrf extraction on some systems
-# 2017-12-20: v0.7e moved get_devlist after check_status
-# 2018-01-08: v0.7f added echo-show to ALL group, TuneIn station can now be up to 6 digits
-# 2018-01-08: v0.8 added bluetooth list function
-# 2018-01-10: v0.8a abort when login was unsuccessful
-# 2018-01-25: v0.8b added echo-spot to ALL group
-# 2018-01-28: v0.8c added configurable browser string
-# 2018-02-17: v0.8d no need to write the cookie file on every "check_status"
-# 2018-02-27: v0.8e added "lastalexa" option for HA-Bridge to send its command to a specific device
-#               (Markus Wennesheimer: https://wennez.wordpress.com/light-on-with-alexa-for-each-room/)
-# 2018-02-27: v0.9 unsuccessful logins will now give a short info how to debug the login
-# 2018-03-09: v0.9a workaround for login problem, force curl to use http1.1
-# 2018-05-17: v0.9b update browser string and accept language
-# 2018-05-23: v0.9c update accept language (again)
-# 2018-06-12: v0.10 introducing TTS and more
-#               (thanks to Michael Geramb and his openHAB2 Amazon Echo Control binding)
-#               https://github.com/openhab/openhab2-addons/tree/master/addons/binding/org.openhab.binding.amazonechocontrol
-#               (thanks to Ralf Otto for implementing this feature in this script)
-# 2018-06-13: v0.10a added album play of imported library
-# 2018-06-18: v0.10b added Alexa routine execution
-# 2019-01-22: v0.11 added repeat command, added environment variable parsing
-# 2019-02-03: v0.11a fixed string escape for automation and speak commands
-# 2019-02-10: v0.12 added "-d ALL" to the plain version, lastalexa now checks for SUCCESS activityStatus
-# 2019-02-14: v0.12a reduced the number of replaced characters for TTS and automation
-# 2019-06-18: v0.12b fixed CSRF
-# 2019-06-28: v0.12c properly fixed CSRF
-# 2019-07-08: v0.13 added support for Multi-Factor Authentication
-#               (thanks to rich-gepp https://github.com/rich-gepp)
-# 2019-08-05: v0.14 added Volume setting via routine, and $SPEAKVOL
-# 2019-11-18: v0.14a download 200 routines instead of only the first 20
-# 2019-12-23: v0.14b Trigger routines by either utterance or routine name
-# 2019-12-30: v0.15 re-worked the volume setting for TTS commands
-# 2020-01-03: v0.15a introduce some proper "get_volume"
-# 2020-01-08: v0.15b cleaned merge errors
+# 2020-01-08: v0.15b (for updates see http://blog.loetzimmer.de/2017/10/amazon-alexa-hort-auf-die-shell-echo.html)
 #
 ###
 #
 # (no BASHisms were used, should run with any shell)
 # - requires cURL for web communication
 # - (GNU) sed and awk for extraction
-# - jq as command line JSON parser (optional for the fancy bits)
 # - oathtool as OATH one-time password tool (optional for two-factor authentication)
 #
 ##########################################
@@ -102,9 +56,6 @@ SET_SPEAKVOL="30"
 # if no current playing volume can be determined, fall back to normal volume
 SET_NORMALVOL="10"
 
-# max. age in minutes before volume is read from API
-SET_VOLMAXAGE="30"
-
 # Device specific volumes (overriding the above)
 SET_DEVICEVOLNAME="EchoDot2ndGen  Echo1stGen"
 SET_DEVICEVOLSPEAK="100 30"
@@ -129,13 +80,14 @@ TMP=${TMP:-$SET_TMP}
 OATHTOOL=${OATHTOOL:-$SET_OATHTOOL}
 SPEAKVOL=${SPEAKVOL:-$SET_SPEAKVOL}
 NORMALVOL=${NORMALVOL:-$SET_NORMALVOL}
-VOLMAXAGE=${VOLMAXAGE:-$SET_VOLMAXAGE}
 DEVICEVOLNAME=${DEVICEVOLNAME:-$SET_DEVICEVOLNAME}
 DEVICEVOLSPEAK=${DEVICEVOLSPEAK:-$SET_DEVICEVOLSPEAK}
 DEVICEVOLNORMAL=${DEVICEVOLNORMAL:-$SET_DEVICEVOLNORMAL}
 
 COOKIE="${TMP}/.alexa.cookie"
 DEVLIST="${TMP}/.alexa.devicelist.json"
+DEVTXT="${TMP}/.alexa.devicelist.txt"
+DEVALL="${TMP}/.alexa.devicelist.all"
 
 GUIVERSION=0
 
@@ -143,7 +95,6 @@ LIST=""
 LOGOFF=""
 COMMAND=""
 TTS=""
-UTTERANCE=""
 SEQUENCECMD=""
 SEQUENCEVAL=""
 STATIONID=""
@@ -151,7 +102,6 @@ QUEUE=""
 SONG=""
 ALBUM=""
 ARTIST=""
-TYPE=""
 ASIN=""
 SEEDID=""
 HIST=""
@@ -160,7 +110,6 @@ CHILD=""
 PLIST=""
 BLUETOOTH=""
 LASTALEXA=""
-GETVOL=""
 NOTIFICATIONS=""
 
 usage()
@@ -168,10 +117,10 @@ usage()
 	echo "$0 [-d <device>|ALL] -e <pause|play|next|prev|fwd|rwd|shuffle|repeat|vol:<0-100>> |"
 	echo "          -b [list|<\"AA:BB:CC:DD:EE:FF\">] | -q | -n | -r <\"station name\"|stationid> |"
 	echo "          -s <trackID|'Artist' 'Album'> | -t <ASIN> | -u <seedID> | -v <queueID> | -w <playlistId> |"
-	echo "          -i | -p | -P | -S | -a | -m <multiroom_device> [device_1 .. device_X] | -lastalexa | -z | -l | -h"
+	echo "          -a | -m <multiroom_device> [device_1 .. device_X] | -lastalexa | -l | -h"
 	echo
 	echo "   -e : run command, additional SEQUENCECMDs:"
-	echo "        weather,traffic,flashbriefing,goodmorning,singasong,tellstory,speak:'<text>',automation:'<routine name>'"
+	echo "        weather,traffic,flashbriefing,goodmorning,singasong,tellstory,speak:'<text>'"
 	echo "   -b : connect/disconnect/list bluetooth device"
 	echo "   -q : query queue"
 	echo "   -n : query notifications"
@@ -181,14 +130,9 @@ usage()
 	echo "   -u : play Prime station"
 	echo "   -v : play Prime historical queue"
 	echo "   -w : play library playlist"
-	echo "   -i : list imported library tracks"
-	echo "   -p : list purchased library tracks"
-	echo "   -P : list Prime playlists"
-	echo "   -S : list Prime stations"
 	echo "   -a : list available devices"
 	echo "   -m : delete multiroom and/or create new multiroom containing devices"
-	echo "   -lastalexa : print device that received the last voice command"
-	echo "   -z : print current volume level"   
+	echo "   -lastalexa : print serial number that received the last voice command"
 	echo "   -l : logoff"
 	echo "   -h : help"
 }
@@ -242,15 +186,6 @@ while [ "$#" -gt 0 ] ; do
 			fi
 			STATIONID=$2
 			shift
-			# stationIDs are "s1234" or "s12345"
-			if [ -n "${STATIONID##s[0-9][0-9][0-9][0-9]}" -a -n "${STATIONID##s[0-9][0-9][0-9][0-9][0-9]}" -a -n "${STATIONID##s[0-9][0-9][0-9][0-9][0-9][0-9]}" ] ; then
-				# search for station name
-				STATIONID=$(${CURL} ${OPTS} -s --data-urlencode "query=${STATIONID}" -G "https://api.tunein.com/profiles?fullTextSearch=true" | jq -r '.Items[] | select(.ContainerType == "Stations") | .Children[] | select( .Index==1 ) | .GuideId')
-				if [ -z "$STATIONID" ] ; then
-					echo "ERROR: no Station \"$2\" found on TuneIn"
-					exit 1
-				fi
-			fi
 			;;
 		-s)
 			if [ "${2#-}" != "${2}" -o -z "$2" ] ; then
@@ -302,23 +237,20 @@ while [ "$#" -gt 0 ] ; do
 			PLIST=$2
 			shift
 			;;
+		-d)
+			if [ "${2#-}" != "${2}" -o -z "$2" ] ; then
+				echo "ERROR: missing argument for ${1}"
+				usage
+				exit 1
+			fi
+			DEVICE=$2
+			shift
+			;;
 		-l)
 			LOGOFF="true"
 			;;
 		-a)
 			LIST="true"
-			;;
-		-i)
-			TYPE="IMPORTED"
-			;;
-		-p)
-			TYPE="PURCHASES"
-			;;
-		-P)
-			PRIME="prime-playlist-browse-nodes"
-			;;
-		-S)
-			PRIME="prime-sections"
 			;;
 		-q)
 			QUEUE="true"
@@ -328,9 +260,6 @@ while [ "$#" -gt 0 ] ; do
 			;;
 		-lastalexa)
 			LASTALEXA="true"
-			;;
-		-z)
-			GETVOL="true"
 			;;
 		-h|-\?|--help)
 			usage
@@ -386,11 +315,7 @@ case "$COMMAND" in
 	speak:*)
 			SEQUENCECMD='Alexa.Speak'
 			TTS=$(echo ${COMMAND##*:} | sed -r 's/["\\]/ /g')
-			TTS=',\"textToSpeak\":\"'${TTS}'\"'
-			;;
-	automation:*)
-			SEQUENCECMD='automation'
-			UTTERANCE=$(echo ${COMMAND##*:} | sed -r 's/["\\]/ /g')
+			TTS=",\\\"textToSpeak\\\":\\\"${TTS}\\\""
 			;;
 	weather)
 			SEQUENCECMD='Alexa.Weather.Play'
@@ -428,13 +353,14 @@ log_in()
 #
 # following headers are required:
 #	Accept-Language	(possibly for determining login region)
-#	User-Agent	(cURL wouldn't store cookies without)
+#	User-Agent	(CURL wouldn't store cookies without)
 #
 ################################################################
 
 rm -f ${DEVLIST}
+rm -f ${DEVTXT}
+rm -f ${DEVALL}
 rm -f ${COOKIE}
-rm -f ${TMP}/.alexa.*.list
 
 #
 # get first cookie and write redirection target into referer
@@ -483,7 +409,7 @@ if [ -z "$(grep 'Location: https://alexa.*html' ${TMP}/.alexa.header2)" ] ; then
 	rm -f "${TMP}/.alexa.postdata2"
 	exit 1
 fi
-
+	
 #
 # get CSRF
 #
@@ -526,6 +452,32 @@ ${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep
  -H "Content-Type: application/json; charset=UTF-8" -H "Referer: https://alexa.${AMAZON}/spa/index.html" -H "Origin: https://alexa.${AMAZON}"\
  -H "csrf: $(awk "\$0 ~/.${AMAZON}.*csrf[ \\s\\t]+/ {print \$7}" ${COOKIE})"\
  "https://${ALEXA}/api/devices-v2/device?cached=false" > ${DEVLIST}
+ 
+	if [ ! -f ${DEVTXT} ] ; then
+		cat ${DEVLIST}| sed 's/\\\\\//\//g' | sed 's/[{}]//g' | awk -v k="text" '{n=split($0,a,","); for (i=1; i<=n; i++) print a[i]}' | sed 's/\"\:\"/\|/g' | sed 's/[\,]/ /g' | sed 's/\"//g' > ${DEVTXT}
+	fi
+	
+	# create a file that contains valid device names for the "ALL" device
+	ATTR="accountName"
+	NAME=$(grep ${ATTR}\| ${DEVTXT} | sed "s/^.*${ATTR}|//" | sed 's/ /_/g')
+
+	ATTR="deviceFamily"
+	FAMILY=$(grep ${ATTR}\| ${DEVTXT} | sed "s/^.*${ATTR}|//" | sed 's/ /_/g')
+
+	IDX=0
+	for N in $NAME ; do
+		C=0
+		for F in $FAMILY ; do
+			if [ $C -eq $IDX ] ; then
+				if [ "$F" = "WHA" -o "$F" = "ECHO" -o "$F" = "KNIGHT" -o "$F" = "ROOK" ] ; then
+					echo ${N} >> ${DEVALL}
+				fi
+				break
+			fi
+			C=$((C+1))
+		done
+		IDX=$((IDX+1))
+	done
 }
 
 check_status()
@@ -550,35 +502,106 @@ check_status()
 #
 set_var()
 {
-	DEVICE=$(echo ${DEVICE} | sed -r 's/%20/ /g')
+	ATTR="accountName"
+	NAME=$(grep ${ATTR}\| ${DEVTXT} | sed "s/^.*${ATTR}|//" | sed 's/ /_/g')
+
+	ATTR="deviceType"
+	TYPE=$(grep ${ATTR}\| ${DEVTXT} | sed "s/^.*${ATTR}|//" | sed 's/ /_/g')
+
+	ATTR="serialNumber"
+	SERIAL=$(grep ${ATTR}\| ${DEVTXT} | sed "s/^.*${ATTR}|//" | sed 's/ /_/g')
+
+#	ATTR="deviceOwnerCustomerId"
+#	MEDIAID=`grep ${ATTR}\| ${DEVTXT} | sed "s/^.*${ATTR}|//" | sed 's/ /_/g')
+
+	ATTR="deviceFamily"
+	FAMILY=$(grep ${ATTR}\| ${DEVTXT} | sed "s/^.*${ATTR}|//" | sed 's/ /_/g')
+
+	ATTR="online"
+	ONLINE=$(grep ${ATTR}\: ${DEVTXT} | sed "s/^.*${ATTR}://")
 
 	if [ -z "${DEVICE}" ] ; then
 		# if no device was supplied, use the first Echo(dot) in device list
+        IDX=0
+		for F in $FAMILY ; do
+			if [ "$F" = "ECHO" -o "$F" = "KNIGHT" -o "$F" = "ROOK" ] ; then
+				break;
+			fi
+			IDX=$((IDX+1))
+		done
+
+		C=0
+		for N in $NAME ; do
+			if [ $C -eq $IDX ] ; then
+				DEVICE=$N
+				break
+			fi
+			C=$((C+1))
+		done
 		echo "setting default device to:"
-		DEVICE=$(jq -r '[ .devices[] | select(.deviceFamily == "ECHO" or .deviceFamily == "KNIGHT" or .deviceFamily == "ROOK" ) | .accountName] | .[0]' ${DEVLIST})
 		echo ${DEVICE}
+	else
+		DEVICE=`echo $DEVICE | sed 's/ /_/g'`
+		IDX=0
+		for N in $NAME ; do
+			if [ "$N" = "$DEVICE" ] ; then
+				break;
+			fi
+			IDX=$((IDX+1))
+		done
 	fi
 
-	DEVICETYPE=$(jq --arg device "${DEVICE}" -r '.devices[] | select(.accountName == $device) | .deviceType' ${DEVLIST})
-	DEVICESERIALNUMBER=$(jq --arg device "${DEVICE}" -r '.devices[] | select(.accountName == $device) | .serialNumber' ${DEVLIST})
-	DEVICEFAMILY=$(jq --arg device "${DEVICE}" -r '.devices[] | select(.accountName == $device) | .deviceFamily' ${DEVLIST})
+# customerId is now retrieved from the logged in user
+# the customerId in the device list is always from the user registering the device initially
+#	C=0
+#	for I in $MEDIAID ; do
+#		if [ $C -eq $IDX ] ; then
+#			MEDIAOWNERCUSTOMERID=$I
+#			break
+#		fi
+#		C=$((C+1))
+#	done
 
-	# customerId is now retrieved from the logged in user
-	# the customerId in the device list is always from the user registering the device initially
-	# MEDIAOWNERCUSTOMERID=$(jq --arg device "${DEVICE}" -r '.devices[] | select(.accountName == $device) | .deviceOwnerCustomerId' ${DEVLIST})
+	C=0
+	for T in $TYPE ; do
+		if [ $C -eq $IDX ] ; then
+			DEVICETYPE=$T
+			break
+		fi
+		C=$((C+1))
+	done
+
+	C=0
+	for S in $SERIAL ; do
+		if [ $C -eq $IDX ] ; then
+			DEVICESERIALNUMBER=$S
+			break
+		fi
+		C=$((C+1))
+	done
+
+	C=0
+	for F in $FAMILY ; do
+		if [ $C -eq $IDX ] ; then
+			DEVICEFAMILY=$F
+			break
+		fi
+		C=$((C+1))
+	done
+
+	C=0
+	for O in $ONLINE ; do
+		if [ $C -eq $IDX ] ; then
+			DEVICESTATE=$O
+			break
+		fi
+		C=$((C+1))
+	done
 
 	if [ -z "${DEVICESERIALNUMBER}" ] ; then
 		echo "ERROR: unkown device dev:${DEVICE}"
 		exit 1
 	fi
-}
-
-#
-# list available devices from JSON device list
-#
-list_devices()
-{
-	jq -r '.devices[].accountName' ${DEVLIST}
 }
 
 #
@@ -588,78 +611,62 @@ list_devices()
 run_cmd()
 {
 if [ -n "${SEQUENCECMD}" ] ; then
-	if [ "${SEQUENCECMD}" = 'automation' ] ; then
+	# the speak command is treated differently in that the wolume gets set to $SPEAKVOL
+	if [ -n "${TTS}" ] ; then 
+		if [ "${DEVICEFAMILY}" = "WHA" ] ; then
+			echo "Skipping unsupported command: ${COMMAND} on dev:${DEVICE} type:${DEVICETYPE} serial:${DEVICESERIALNUMBER} family:${DEVICEFAMILY}"
+			return
+		fi
+		SVOL=$SPEAKVOL
 
-		${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep-alive" -L\
+		# Not using arrays here in order to be compatible with non-Bash
+		# Get the list position of the current device type
+		IDX=0
+		for D in $DEVICEVOLNAME ; do
+			if [ "${D}" = "${DEVICE}" ] ; then
+				break;
+			fi
+			IDX=$((IDX+1))
+		done
+
+		# get the speak volume at that position
+		C=0
+		for D in $DEVICEVOLSPEAK ; do
+			if [ $C -eq $IDX ] ; then
+				if [ -n "${D}" ] ; then SVOL=$D ; fi 
+				break
+			fi
+			C=$((C+1))
+		done
+
+		# try to retrieve the "currently playing" volume
+		VOL=$(${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep-alive" -L\
 		 -H "Content-Type: application/json; charset=UTF-8" -H "Referer: https://alexa.${AMAZON}/spa/index.html" -H "Origin: https://alexa.${AMAZON}"\
 		 -H "csrf: $(awk "\$0 ~/.${AMAZON}.*csrf[ \\s\\t]+/ {print \$7}" ${COOKIE})" -X GET \
-		 "https://${ALEXA}/api/behaviors/automations?limit=200" > "${TMP}/.alexa.automation"
+		 "https://${ALEXA}/api/media/state?deviceSerialNumber=${DEVICESERIALNUMBER}&deviceType=${DEVICETYPE}" | grep 'volume' | sed -r 's/^.*"volume":\s*([0-9]+)[^0-9]*$/\1/g')
 
-		AUTOMATION=$(jq --arg utterance "${UTTERANCE}" -r '.[] | select( .triggers[].payload.utterance == $utterance) | .automationId' "${TMP}/.alexa.automation")
-		if [ -z "${AUTOMATION}" ] ; then
-			AUTOMATION=$(jq --arg utterance "${UTTERANCE}" -r '.[] | select( .name == $utterance) | .automationId' "${TMP}/.alexa.automation")
-			if [ -z "${AUTOMATION}" ] ; then
-				echo "ERROR: no such utterance '${UTTERANCE}' in Alexa routines"
-				rm -f "${TMP}/.alexa.automation"
-				exit 1
-			fi
-		fi
-		SEQUENCE=$(jq --arg automation "${AUTOMATION}" -r -c '.[] | select( .automationId == $automation) | .sequence' "${TMP}/.alexa.automation" | sed 's/"/\\"/g' | sed "s/ALEXA_CURRENT_DEVICE_TYPE/${DEVICETYPE}/g" | sed "s/ALEXA_CURRENT_DSN/${DEVICESERIALNUMBER}/g" | sed "s/ALEXA_CUSTOMER_ID/${MEDIAOWNERCUSTOMERID}/g")
-		rm -f "${TMP}/.alexa.automation"
+		# in order to prevent a "Rate exceeded" we need to delay the command
+		sleep 1
 
-		ALEXACMD='{"behaviorId":"'${AUTOMATION}'","sequenceJson":"'${SEQUENCE}'","status":"ENABLED"}'
-	else
-		# the speak command is treated differently in that the wolume gets set to $SPEAKVOL
-		if [ -n "${TTS}" ] ; then 
-			if [ "${DEVICEFAMILY}" = "WHA" ] ; then
-				echo "Skipping unsupported command: ${COMMAND} on dev:${DEVICE} type:${DEVICETYPE} serial:${DEVICESERIALNUMBER} family:${DEVICEFAMILY}"
-				return
-			fi
-			SVOL=$SPEAKVOL
-
-			# Not using arrays here in order to be compatible with non-Bash
-			# Get the list position of the current device type
-			IDX=0
-			for D in $DEVICEVOLNAME ; do
-				if [ "${D}" = "${DEVICE}" ] ; then
-					break;
-				fi
-				IDX=$((IDX+1))
-			done
-
-			# get the speak volume at that position
+		if [ -z "${VOL}" ] ; then
+			# get the normal volume of the current device type
 			C=0
-			for D in $DEVICEVOLSPEAK ; do
+			for D in $DEVICEVOLNORMAL; do
 				if [ $C -eq $IDX ] ; then
-					if [ -n "${D}" ] ; then SVOL=$D ; fi 
+					VOL=$D
 					break
 				fi
 				C=$((C+1))
 			done
-
-			# try to retrieve the "currently playing" volume
-			VOL=$(get_volume)
-
+			# if the volume is still undefined, use $NORMALVOL
 			if [ -z "${VOL}" ] ; then
-				# get the normal volume of the current device type
-				C=0
-				for D in $DEVICEVOLNORMAL; do
-					if [ $C -eq $IDX ] ; then
-						VOL=$D
-						break
-					fi
-					C=$((C+1))
-				done
-				# if the volume is still undefined, use $NORMALVOL
-				if [ -z "${VOL}" ] ; then
-					VOL=$NORMALVOL
-				fi
+				VOL=$NORMALVOL
 			fi
-
-			ALEXACMD='{"behaviorId":"PREVIEW","sequenceJson":"{\"@type\":\"com.amazon.alexa.behaviors.model.Sequence\",\"startNode\":{\"@type\":\"com.amazon.alexa.behaviors.model.SerialNode\",\"nodesToExecute\":[{\"@type\":\"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\",\"type\":\"Alexa.DeviceControls.Volume\",\"operationPayload\":{\"deviceType\":\"'${DEVICETYPE}'\",\"deviceSerialNumber\":\"'${DEVICESERIALNUMBER}'\",\"customerId\":\"'${MEDIAOWNERCUSTOMERID}'\",\"locale\":\"'${TTS_LOCALE}'\",\"value\":\"'${SVOL}'\"}},{\"@type\":\"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\",\"type\":\"'${SEQUENCECMD}'\",\"operationPayload\":{\"deviceType\":\"'${DEVICETYPE}'\",\"deviceSerialNumber\":\"'${DEVICESERIALNUMBER}'\",\"customerId\":\"'${MEDIAOWNERCUSTOMERID}'\",\"locale\":\"'${TTS_LOCALE}'\"'${TTS}'}},{\"@type\":\"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\",\"type\":\"Alexa.DeviceControls.Volume\",\"operationPayload\":{\"deviceType\":\"'${DEVICETYPE}'\",\"deviceSerialNumber\":\"'${DEVICESERIALNUMBER}'\",\"customerId\":\"'${MEDIAOWNERCUSTOMERID}'\",\"locale\":\"'${TTS_LOCALE}'\",\"value\":\"'${VOL}'\"}}]}}","status":"ENABLED"}'
-		else
-			ALEXACMD='{"behaviorId":"PREVIEW","sequenceJson":"{\"@type\":\"com.amazon.alexa.behaviors.model.Sequence\",\"startNode\":{\"@type\":\"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\",\"type\":\"'${SEQUENCECMD}'\",\"operationPayload\":{\"deviceType\":\"'${DEVICETYPE}'\",\"deviceSerialNumber\":\"'${DEVICESERIALNUMBER}'\",\"customerId\":\"'${MEDIAOWNERCUSTOMERID}'\",\"locale\":\"'${TTS_LOCALE}'\"'${SEQUENCEVAL}'}}}","status":"ENABLED"}'
 		fi
+
+		ALEXACMD='{"behaviorId":"PREVIEW","sequenceJson":"{\"@type\":\"com.amazon.alexa.behaviors.model.Sequence\",\"startNode\":{\"@type\":\"com.amazon.alexa.behaviors.model.SerialNode\",\"nodesToExecute\":[{\"@type\":\"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\",\"type\":\"Alexa.DeviceControls.Volume\",\"operationPayload\":{\"deviceType\":\"'${DEVICETYPE}'\",\"deviceSerialNumber\":\"'${DEVICESERIALNUMBER}'\",\"customerId\":\"'${MEDIAOWNERCUSTOMERID}'\",\"locale\":\"'${TTS_LOCALE}'\",\"value\":\"'${SVOL}'\"}},{\"@type\":\"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\",\"type\":\"'${SEQUENCECMD}'\",\"operationPayload\":{\"deviceType\":\"'${DEVICETYPE}'\",\"deviceSerialNumber\":\"'${DEVICESERIALNUMBER}'\",\"customerId\":\"'${MEDIAOWNERCUSTOMERID}'\",\"locale\":\"'${TTS_LOCALE}'\"'${TTS}'}},{\"@type\":\"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\",\"type\":\"Alexa.DeviceControls.Volume\",\"operationPayload\":{\"deviceType\":\"'${DEVICETYPE}'\",\"deviceSerialNumber\":\"'${DEVICESERIALNUMBER}'\",\"customerId\":\"'${MEDIAOWNERCUSTOMERID}'\",\"locale\":\"'${TTS_LOCALE}'\",\"value\":\"'${VOL}'\"}}]}}","status":"ENABLED"}'
+	else
+		ALEXACMD='{"behaviorId":"PREVIEW","sequenceJson":"{\"@type\":\"com.amazon.alexa.behaviors.model.Sequence\",\"startNode\":{\"@type\":\"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\",\"type\":\"'${SEQUENCECMD}'\",\"operationPayload\":{\"deviceType\":\"'${DEVICETYPE}'\",\"deviceSerialNumber\":\"'${DEVICESERIALNUMBER}'\",\"customerId\":\"'${MEDIAOWNERCUSTOMERID}'\",\"locale\":\"'${TTS_LOCALE}'\"'${SEQUENCEVAL}'}}}","status":"ENABLED"}'
 	fi
 
 	# Due to some weird shell-escape-behavior the command has to be written to a file before POSTing it
@@ -667,11 +674,11 @@ if [ -n "${SEQUENCECMD}" ] ; then
 
 	${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep-alive" -L\
 	 -H "Content-Type: application/json; charset=UTF-8" -H "Referer: https://alexa.${AMAZON}/spa/index.html" -H "Origin: https://alexa.${AMAZON}"\
-	 -H "csrf: $(awk "\$0 ~/.${AMAZON}.*csrf[ \\s\\t]+/ {print \$7}" ${COOKIE})" -X POST -d @"${TMP}/.alexa.cmd" \
+	 -H "csrf: $(awk "\$0 ~/.${AMAZON}.*csrf[ \\s\\t]+/ {print \$7}" ${COOKIE})" -X POST -d @"${TMP}/.alexa.cmd"\
 	 "https://${ALEXA}/api/behaviors/preview"
 
 	rm -f "${TMP}/.alexa.cmd"
-
+		 
 else
 	${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep-alive" -L\
 	 -H "Content-Type: application/json; charset=UTF-8" -H "Referer: https://alexa.${AMAZON}/spa/index.html" -H "Origin: https://alexa.${AMAZON}"\
@@ -753,132 +760,28 @@ ${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep
 }
 
 #
-# show library tracks
-#
-show_library()
-{
-	OFFSET="";
-	SIZE=50;
-	TOTAL=0;
-	FILE=${TMP}/.alexa.${TYPE}.list
-
-	if [ ! -f ${FILE} ] ; then
-		echo -n '{"playlist":{"entryList":[' > ${FILE}
-
-		while [ 50 -le ${SIZE} ] ; do
-
-${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep-alive" -L\
- -H "Content-Type: application/json; charset=UTF-8" -H "Referer: https://alexa.${AMAZON}/spa/index.html" -H "Origin: https://alexa.${AMAZON}"\
- -H "csrf: $(awk "\$0 ~/.${AMAZON}.*csrf[ \\s\\t]+/ {print \$7}" ${COOKIE})" -X GET \
- "https://${ALEXA}/api/cloudplayer/playlists/${TYPE}-V0-OBJECTID?deviceSerialNumber=${DEVICESERIALNUMBER}&deviceType=${DEVICETYPE}&size=${SIZE}&offset=${OFFSET}&mediaOwnerCustomerId=${MEDIAOWNERCUSTOMERID}" > ${FILE}.tmp
-
-			OFFSET=$(jq -r '.nextResultsToken' ${FILE}.tmp)
-			SIZE=$(jq -r '.playlist | .trackCount' ${FILE}.tmp)
-			jq -r -c '.playlist | .entryList' ${FILE}.tmp >> ${FILE}
-			echo "," >> ${FILE}
-			TOTAL=$((TOTAL+SIZE))
-		done
-		echo "[]],\"trackCount\":\"${TOTAL}\"}}" >> ${FILE}
-		rm -f ${FILE}.tmp
-	fi
-	jq -r '.playlist.trackCount' ${FILE}
-	jq '.playlist.entryList[] | .[]' ${FILE}
-}
-
-#
-# show Prime stations and playlists
-#
-show_prime()
-{
-	FILE=${TMP}/.alexa.${PRIME}.list
-
-	if [ ! -f ${FILE} ] ; then
-${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep-alive" -L\
- -H "Content-Type: application/json; charset=UTF-8" -H "Referer: https://alexa.${AMAZON}/spa/index.html" -H "Origin: https://alexa.${AMAZON}"\
- -H "csrf: $(awk "\$0 ~/.${AMAZON}.*csrf[ \\s\\t]+/ {print \$7}" ${COOKIE})" -X GET \
- "https://${ALEXA}/api/prime/{$PRIME}?deviceSerialNumber=${DEVICESERIALNUMBER}&deviceType=${DEVICETYPE}&mediaOwnerCustomerId=${MEDIAOWNERCUSTOMERID}" > ${FILE}
-
-		if [ "$PRIME" = "prime-playlist-browse-nodes" ] ; then
-			for I in $(jq -r '.primePlaylistBrowseNodeList[].subNodes[].nodeId' ${FILE} 2>/dev/null) ; do
-${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep-alive" -L\
- -H "Content-Type: application/json; charset=UTF-8" -H "Referer: https://alexa.${AMAZON}/spa/index.html" -H "Origin: https://alexa.${AMAZON}"\
- -H "csrf: $(awk "\$0 ~/.${AMAZON}.*csrf[ \\s\\t]+/ {print \$7}" ${COOKIE})" -X GET \
- "https://${ALEXA}/api/prime/prime-playlists-by-browse-node?browseNodeId=${I}&deviceSerialNumber=${DEVICESERIALNUMBER}&deviceType=${DEVICETYPE}&mediaOwnerCustomerId=${MEDIAOWNERCUSTOMERID}" >> ${FILE}
-			done
-		fi
-	fi
-	jq '.' ${FILE}
-}
-
-#
 # current queue
 #
 show_queue()
 {
-	PARENT=""
-	PARENTID=$(jq --arg device "${DEVICE}" -r '.devices[] | select(.accountName == $device) | .parentClusters[0]' ${DEVLIST})
-	if [ "$PARENTID" != "null" ] ; then
-		PARENTDEVICE=$(jq --arg serial ${PARENTID} -r '.devices[] | select(.serialNumber == $serial) | .deviceType' ${DEVLIST})
-		PARENT="&lemurId=${PARENTID}&lemurDeviceType=${PARENTDEVICE}"
-	fi
-	
+	echo "/api/np/player"
+${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep-alive" -L\
+ -H "Content-Type: application/json; charset=UTF-8" -H "Referer: https://alexa.${AMAZON}/spa/index.html" -H "Origin: https://alexa.${AMAZON}"\
+ -H "csrf: $(awk "\$0 ~/.${AMAZON}.*csrf[ \\s\\t]+/ {print \$7}" ${COOKIE})" -X GET \
+ "https://${ALEXA}/api/np/player?deviceSerialNumber=${DEVICESERIALNUMBER}&deviceType=${DEVICETYPE}"
+	echo
+	echo "/api/np/queue"
+${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep-alive" -L\
+ -H "Content-Type: application/json; charset=UTF-8" -H "Referer: https://alexa.${AMAZON}/spa/index.html" -H "Origin: https://alexa.${AMAZON}"\
+ -H "csrf: $(awk "\$0 ~/.${AMAZON}.*csrf[ \\s\\t]+/ {print \$7}" ${COOKIE})" -X GET \
+ "https://${ALEXA}/api/np/queue?deviceSerialNumber=${DEVICESERIALNUMBER}&deviceType=${DEVICETYPE}"
+	echo
+	echo "/api/media/state"
  ${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep-alive" -L\
-  -H "Content-Type: application/json; charset=UTF-8" -H "Referer: https://alexa.${AMAZON}/spa/index.html" -H "Origin: https://alexa.${AMAZON}"\
-  -H "csrf: $(awk "\$0 ~/.${AMAZON}.*csrf[ \\s\\t]+/ {print \$7}" ${COOKIE})" -X GET \
-  "https://${ALEXA}/api/np/player?deviceSerialNumber=${DEVICESERIALNUMBER}&deviceType=${DEVICETYPE}${PARENT}" | jq '.'
-
- ${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep-alive" -L\
-  -H "Content-Type: application/json; charset=UTF-8" -H "Referer: https://alexa.${AMAZON}/spa/index.html" -H "Origin: https://alexa.${AMAZON}"\
-  -H "csrf: $(awk "\$0 ~/.${AMAZON}.*csrf[ \\s\\t]+/ {print \$7}" ${COOKIE})" -X GET \
-  "https://${ALEXA}/api/media/state?deviceSerialNumber=${DEVICESERIALNUMBER}&deviceType=${DEVICETYPE}" | jq '.'
-
- ${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep-alive" -L\
-  -H "Content-Type: application/json; charset=UTF-8" -H "Referer: https://alexa.${AMAZON}/spa/index.html" -H "Origin: https://alexa.${AMAZON}"\
-  -H "csrf: $(awk "\$0 ~/.${AMAZON}.*csrf[ \\s\\t]+/ {print \$7}" ${COOKIE})" -X GET \
-  "https://${ALEXA}/api/np/queue?deviceSerialNumber=${DEVICESERIALNUMBER}&deviceType=${DEVICETYPE}" | jq '.'
-}
-
-#
-# current volume level
-#
-get_volume()
-{
-	VOLFILE=$(find "${TMP}/.alexa.volume.${DEVICESERIALNUMBER}" -mmin -${VOLMAXAGE} 2>/dev/null)
-	if [ -z "${VOLFILE}" ] ; then
-		# first, try the volume setting of /media/state of the device
-		VOL=$(${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep-alive" -L\
-			-H "Content-Type: application/json; charset=UTF-8" -H "Referer: https://alexa.${AMAZON}/spa/index.html" -H "Origin: https://alexa.${AMAZON}"\
-			-H "csrf: $(awk "\$0 ~/.${AMAZON}.*csrf[ \\s\\t]+/ {print \$7}" ${COOKIE})" -X GET \
-			"https://${ALEXA}/api/media/state?deviceSerialNumber=${DEVICESERIALNUMBER}&deviceType=${DEVICETYPE}" | jq -r  --arg device "${DEVICESERIALNUMBER}" '"\($device) \(.volume) \(.muted)"')
-
-		VOLCHECK=$(echo "${VOL}" | cut -d' ' -f2)
-		# if we didn't get a proper volume, try the LemurDevice
-		if [ "$VOLCHECK" = "0" -o "$VOLCHECK" = "null" -o -z "$VOLCHECK" ] ; then
-			PARENTID=$(jq --arg device "${DEVICE}" -r '.devices[] | select(.accountName == $device) | .parentClusters[0]' ${DEVLIST})
-			if [ "$PARENTID" != "null" ] ; then
-				PARENTDEVICE=$(jq --arg serial ${PARENTID} -r '.devices[] | select(.serialNumber == $serial) | .deviceType' ${DEVLIST})
-
-				VOL=$(	${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep-alive" -L\
-				  -H "Content-Type: application/json; charset=UTF-8" -H "Referer: https://alexa.${AMAZON}/spa/index.html" -H "Origin: https://alexa.${AMAZON}"\
-				  -H "csrf: $(awk "\$0 ~/.${AMAZON}.*csrf[ \\s\\t]+/ {print \$7}" ${COOKIE})" -X GET \
-				  "https://${ALEXA}/api/np/player?deviceSerialNumber=${PARENTID}&deviceType=${PARENTDEVICE}" | jq -r '.playerInfo.lemurVolume.memberVolume | to_entries[] | "\(.key) \(.value.volume) \(.value.muted)"')
-			fi
-		fi
-
-		# write volume and mute state to file
-		OIFS=$IFS
-		IFS='
-'
-		set -o noglob
-		for LINE in $VOL ; do
-			SERIAL=$(echo "${LINE}" | cut -d' ' -f1)
-			VOLUME=$(echo "${LINE}" | cut -d' ' -f2)
-			MUTED=$(echo "${LINE}" | cut -d' ' -f3)
-			echo "${VOLUME} ${MUTED}" > "${TMP}/.alexa.volume.${SERIAL}"
-		done
-		IFS=$OIFS
-	fi
-	cut -d' ' -f1 "${TMP}/.alexa.volume.${DEVICESERIALNUMBER}"
+ -H "Content-Type: application/json; charset=UTF-8" -H "Referer: https://alexa.${AMAZON}/spa/index.html" -H "Origin: https://alexa.${AMAZON}"\
+ -H "csrf: $(awk "\$0 ~/.${AMAZON}.*csrf[ \\s\\t]+/ {print \$7}" ${COOKIE})" -X GET \
+ "https://${ALEXA}/api/media/state?deviceSerialNumber=${DEVICESERIALNUMBER}&deviceType=${DEVICETYPE}"
+	echo
 }
 
 #
@@ -931,7 +834,7 @@ list_bluetooth()
 ${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep-alive" -L\
  -H "Content-Type: application/json; charset=UTF-8" -H "Referer: https://alexa.${AMAZON}/spa/index.html" -H "Origin: https://alexa.${AMAZON}"\
  -H "csrf: $(awk "\$0 ~/.${AMAZON}.*csrf[ \\s\\t]+/ {print \$7}" ${COOKIE})" -X GET \
- "https://${ALEXA}/api/bluetooth?cached=false" | jq --arg serial "${DEVICESERIALNUMBER}" -r '.bluetoothStates[] | select(.deviceSerialNumber == $serial) | "\(.pairedDeviceList[]?.address) \(.pairedDeviceList[]?.friendlyName)"'
+ "https://${ALEXA}/api/bluetooth?cached=false"
 }
 
 #
@@ -965,9 +868,7 @@ last_alexa()
 ${CURL} ${OPTS} -s -b ${COOKIE} -A "Mozilla/5.0" -H "DNT: 1" -H "Connection: keep-alive" -L\
  -H "Content-Type: application/json; charset=UTF-8" -H "Referer: https://alexa.${AMAZON}/spa/index.html" -H "Origin: https://alexa.${AMAZON}"\
  -H "csrf: $(awk "\$0 ~/.${AMAZON}.*csrf[ \\s\\t]+/ {print \$7}" ${COOKIE})" -X GET \
- "https://${ALEXA}/api/activities?startTime=&size=10&offset=1" | jq -r '[.activities[] | select( .activityStatus == "SUCCESS" )][0] | .sourceDeviceIds[0].serialNumber' | xargs -i jq -r --arg device {} '.devices[] | select( .serialNumber == $device) | .accountName' ${DEVLIST}
-# Serial number: | jq -r '[.activities[] | select( .activityStatus == "SUCCESS" )][0] | .sourceDeviceIds[0].serialNumber'
-# Device name:   | jq -r '[.activities[] | select( .activityStatus == "SUCCESS" )][0] | .sourceDeviceIds[0].serialNumber' | xargs -i jq -r --arg device {} '.devices[] | select( .serialNumber == $device) | .accountName' ${DEVLIST}
+ "https://${ALEXA}/api/activities?startTime=&size=1&offset=1" | sed -r 's/^.*serialNumber":"([^"]+)".*$/\1/'
  }
 
 #
@@ -979,12 +880,12 @@ ${CURL} ${OPTS} -s -c ${COOKIE} -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Con
  https://${ALEXA}/logout > /dev/null
 
 rm -f ${DEVLIST}
+rm -f ${DEVTXT}
+rm -f ${DEVALL}
 rm -f ${COOKIE}
-rm -f ${TMP}/.alexa.*.list
-rm -f ${TMP}/.alexa.volume.*
 }
 
-if [ -z "$LASTALEXA" -a -z "$BLUETOOTH" -a -z "$LEMUR" -a -z "$PLIST" -a -z "$HIST" -a -z "$SEEDID" -a -z "$ASIN" -a -z "$PRIME" -a -z "$TYPE" -a -z "$QUEUE" -a -z "$NOTIFICATIONS" -a -z "$LIST" -a -z "$COMMAND" -a -z "$STATIONID" -a -z "$SONG" -a -z "$GETVOL" -a -n "$LOGOFF" ] ; then
+if [ -z "$LASTALEXA" -a -z "$BLUETOOTH" -a -z "$LEMUR" -a -z "$PLIST" -a -z "$HIST" -a -z "$SEEDID" -a -z "$ASIN" -a -z "$QUEUE" -a -z "$NOTIFICATIONS" -a -z "$COMMAND" -a -z "$STATIONID" -a -z "$SONG" -a -n "$LOGOFF" ] ; then
 	echo "only logout option present, logging off ..."
 	log_off
 	exit 0
@@ -1006,46 +907,42 @@ if [ $? -eq 0 ] ; then
 	fi
 fi
 
-if [ ! -f ${DEVLIST} ] ; then
+if [ ! -f ${DEVTXT} -o ! -f ${DEVALL} ] ; then
 	echo "device list does not exist. downloading ..."
 	get_devlist
-	if [ ! -f ${DEVLIST} ] ; then
+	if [ ! -f ${DEVTXT} ] ; then
 		echo "failed to download device list, aborting"
 		exit 1
 	fi
 fi
 
-if [ -n "$COMMAND" -o -n "$QUEUE" -o -n "$NOTIFICATIONS" -o -n "$GETVOL" ] ; then
+if [ -n "$COMMAND" -o -n "$QUEUE" -o -n "$NOTIFICATIONS" ] ; then
 	if [ "${DEVICE}" = "ALL" ] ; then
-		for DEVICE in $( jq -r '.devices[] | select( ( .deviceFamily == "ECHO" or .deviceFamily == "KNIGHT" or .deviceFamily == "ROOK" or .deviceFamily == "WHA" )  and .online == true ) | .accountName' ${DEVLIST} | sed -r 's/ /%20/g') ; do
+		while IFS= read -r DEVICE ; do
 			set_var
-			if [ -n "$COMMAND" ] ; then
-				echo "sending cmd:${COMMAND} to dev:${DEVICE} type:${DEVICETYPE} serial:${DEVICESERIALNUMBER} customerid:${MEDIAOWNERCUSTOMERID}"
-				run_cmd
-				# in order to prevent a "Rate exceeded" we need to delay the command
-				sleep 1
-				echo
-			elif [ -n "$GETVOL" ] ; then
-				echo "get volume for dev:${DEVICE} type:${DEVICETYPE} serial:${DEVICESERIALNUMBER}"
-				get_volume
-			elif [ -n "$NOTIFICATIONS" ] ; then
-				echo "notifications info for dev:${DEVICE} type:${DEVICETYPE} serial:${DEVICESERIALNUMBER}"
-				show_notifications
-			else
-				echo "queue info for dev:${DEVICE} type:${DEVICETYPE} serial:${DEVICESERIALNUMBER}"
-				show_queue
-				echo
+			if [ "$DEVICESTATE" = "true" ] ; then
+				if [ -n "$COMMAND" ] ; then
+					echo "sending cmd:${COMMAND} to dev:${DEVICE} type:${DEVICETYPE} serial:${DEVICESERIALNUMBER} customerid:${MEDIAOWNERCUSTOMERID}"
+					run_cmd
+					# in order to prevent a "Rate exceeded" we need to delay the command
+					sleep 1
+					echo
+				elif [ -n "$NOTIFICATIONS" ] ; then
+					echo "notifications info for dev:${DEVICE} type:${DEVICETYPE} serial:${DEVICESERIALNUMBER}"
+					show_notifications
+				else
+					echo "queue info for dev:${DEVICE} type:${DEVICETYPE} serial:${DEVICESERIALNUMBER}"
+					show_queue
+					echo
+				fi
 			fi
-		done
+		done < ${DEVALL}
 	else
 		set_var
 		if [ -n "$COMMAND" ] ; then
 			echo "sending cmd:${COMMAND} to dev:${DEVICE} type:${DEVICETYPE} serial:${DEVICESERIALNUMBER} customerid:${MEDIAOWNERCUSTOMERID}"
 			run_cmd
 			echo
-		elif [ -n "$GETVOL" ] ; then
-			echo "get volume for dev:${DEVICE} type:${DEVICETYPE} serial:${DEVICESERIALNUMBER}"
-			get_volume
 		elif [ -n "$NOTIFICATIONS" ] ; then
 			echo "notifications info for dev:${DEVICE} type:${DEVICETYPE} serial:${DEVICESERIALNUMBER}"
 			show_notifications
@@ -1056,14 +953,10 @@ if [ -n "$COMMAND" -o -n "$QUEUE" -o -n "$NOTIFICATIONS" -o -n "$GETVOL" ] ; the
 		fi
 	fi
 elif [ -n "$LEMUR" ] ; then
-	DEVICESERIALNUMBER=$(jq --arg device "${LEMUR}" -r '.devices[] | select(.accountName == $device and .deviceFamily == "WHA") | .serialNumber' ${DEVLIST})
+	DEVICE="${LEMUR}"
+	set_var
 	if [ -n "$DEVICESERIALNUMBER" ] ; then
 		delete_multiroom
-	else
-		if [ -z "$CHILD" ] ; then
-			echo "ERROR: ${LEMUR} is no multiroom device. Cannot delete ${LEMUR}".
-			exit 1
-		fi
 	fi
 	if [ -z "$CHILD" ] ; then
 		echo "Deleted multi room dev:${LEMUR} serial:${DEVICESERIALNUMBER}"
@@ -1073,19 +966,21 @@ elif [ -n "$LEMUR" ] ; then
 		echo
 	fi
 	rm -f ${DEVLIST}
+	rm -f ${DEVALL}
+	rm -f ${DEVTXT}
 	get_devlist
 elif [ -n "$BLUETOOTH" ] ; then
 	if [ "$BLUETOOTH" = "list" -o "$BLUETOOTH" = "List" -o "$BLUETOOTH" = "LIST" ] ; then
 		if [ "${DEVICE}" = "ALL" ] ; then
-			for DEVICE in $(jq -r '.devices[] | select( .deviceFamily == "ECHO" or .deviceFamily == "KNIGHT" or .deviceFamily == "ROOK" or .deviceFamily == "WHA") | .accountName' ${DEVLIST} | sed -r 's/ /%20/g') ; do
+			while IFS= read -r DEVICE ; do
 				set_var
-				echo "bluetooth devices for dev:${DEVICE} type:${DEVICETYPE} serial:${DEVICESERIALNUMBER}:"
+				echo "bluetooth api list:"
 				list_bluetooth
 				echo
-			done
+			done < ${DEVALL}
 		else
 			set_var
-			echo "bluetooth devices for dev:${DEVICE} type:${DEVICETYPE} serial:${DEVICESERIALNUMBER}:"
+			echo "bluetooth api list:"
 			list_bluetooth
 			echo
 		fi
@@ -1112,17 +1007,6 @@ elif [ -n "$PLIST" ] ; then
 	set_var
 	echo "playing library playlist:${PLIST} on dev:${DEVICE} type:${DEVICETYPE} serial:${DEVICESERIALNUMBER} mediaownerid:${MEDIAOWNERCUSTOMERID}"
 	play_playlist
-elif [ -n "$LIST" ] ; then
-	echo "the following devices exist in your account:"
-	list_devices
-elif [ -n "$TYPE" ] ; then
-	set_var
-	echo -n "the following songs exist in your ${TYPE} library: "
-	show_library
-elif [ -n "$PRIME" ] ; then
-	set_var
-	echo "the following songs exist in your PRIME ${PRIME}:"
-	show_prime
 elif [ -n "$ASIN" ] ; then
 	set_var
 	echo "playing PRIME playlist ${ASIN}"
@@ -1135,6 +1019,10 @@ elif [ -n "$HIST" ] ; then
 	set_var
 	echo "playing PRIME historical queue ${HIST}"
 	play_prime_hist_queue
+elif [ -n "$LIST" ] ; then
+	ATTR="accountName"
+	echo "the following devices exist in your account:"
+	grep ${ATTR}\| ${DEVTXT} | sed "s/^.*${ATTR}|//" | sed 's/ /_/g'
 elif [ -n "$LASTALEXA" ] ; then
 	last_alexa
 else
