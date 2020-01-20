@@ -1,5 +1,9 @@
 <?php
-$_home= "/opt/loxberry/webfrontend/cgi/plugins/alex2lox";
+require_once "loxberry_system.php";
+
+$_home=LBPHTMLAUTHDIR;
+$_data=LBPDATADIR;
+
 //B&B Technik OG
 //Peter Bazala
 //02/2017
@@ -12,15 +16,15 @@ echo("<br />\n");
 echo("Daten werden aufbereitet, bitte um etwas Geduld<br />\n");
 echo("<br />\n");
  echo("<br />\n");
-$Home="/opt/loxberry/webfrontend/cgi/plugins/alex2lox";
+
 $Ram="/run/shm/alex2lox";
 
 
-echo exec("sh /$Home/start.sh -i"); 
-echo exec("sh /$Home/start.sh -p");
-echo exec("sh /$Home/start.sh -S");
-echo exec("sh /$Home/start.sh -P");
-echo exec("sh /$Home/daten.sh");   
+echo exec("sh /$_home/start.sh -i"); 
+echo exec("sh /$_home/start.sh -p");
+echo exec("sh /$_home/start.sh -S");
+echo exec("sh /$_home/start.sh -P");
+echo exec("sh /$_home/daten.sh");   
 
 ?>
 Bluethooth Daten:<br />

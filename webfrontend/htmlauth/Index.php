@@ -1,12 +1,6 @@
-
-
-
-
-
-
-
 <div style="text-align: center;">
 <?php
+require_once "loxberry_system.php";
 include ("switch_2.php"); 
 
 //B&B Technik OG
@@ -135,16 +129,13 @@ echo("--------------------------------------------------------------------------
 <table align=center>
 
 <?php
-$_home= "/opt/loxberry/webfrontend/cgi/plugins/alex2lox";
-$file= "/opt/loxberry/webfrontend/cgi/plugins/alex2lox/alexa.devicelist.json";
-$msdaten= file_get_contents('/opt/loxberry/config/system/general.cfg');				
-$json = file_get_contents('/opt/loxberry/webfrontend/cgi/plugins/alex2lox/devices.conf');
+$_home=LBPHTMLAUTHDIR;
+$file=LBPHTMLAUTHDIR."/alexa.devicelist.json";
+$msdaten= file_get_contents(LBSCONFIGDIR.'/general.cfg');				
+$json = file_get_contents(LBPHTMLAUTHDIR.'/devices.conf');
 
 
-
-
-
-$filename = '/opt/loxberry/webfrontend/cgi/plugins/alex2lox/devices.conf'; 
+$filename = LBPHTMLAUTHDIR.'/devices.conf'; 
 
      $_content = file( $filename ); 
 
@@ -158,7 +149,7 @@ echo("<br />\n");
 echo("<br />\n");
 
 
-$lines = file('/opt/loxberry/webfrontend/cgi/plugins/alex2lox/devices.conf');
+$lines = file(LBPHTMLAUTHDIR.'/devices.conf');
 
 
 
@@ -242,4 +233,4 @@ echo("<br />\n");
 </table>
 
 </form>
-<?php include('/opt/loxberry/templates/system/de/footer.html'); ?>
+<?php include(LBSTEMPLATEDIR.'/de/footer.html'); ?>

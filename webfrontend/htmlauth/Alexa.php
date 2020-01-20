@@ -1,5 +1,9 @@
 <?php
-$_home= "/opt/loxberry/webfrontend/cgi/plugins/alex2lox";
+require_once "loxberry_system.php";
+
+$_home=LBPHTMLAUTHDIR;
+$_data=LBPDATADIR;
+
 //B&B Technik OG
 //Peter Bazala
 //02/2017
@@ -18,9 +22,7 @@ $Daten = ($_GET["daten"]);
 
 echo shell_exec("bash /$_home/start.sh $Daten"); 
 
-
-
-echo " Datenübergabe: ","$Daten<br />\n";
+echo " DatenÃ¼bergabe: ","$Daten<br />\n";
 
 
 

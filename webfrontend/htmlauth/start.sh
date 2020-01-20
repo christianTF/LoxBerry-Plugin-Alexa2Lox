@@ -31,7 +31,7 @@ echo $Data1 $Data2 $Data3 $Data4 $Data5
 if [ "$1" != "-z" ] ; then
 
 ###############################################
-#Original Script ausführen
+#Original Script ausfÃ¼hren
 ###############################################
 
 echo "Ab zu Remote Script"
@@ -41,7 +41,7 @@ sh ./alexa_remote_control.sh $Data1 $Data2 $Data3 $Data4$Data5
 exit 1
    fi
 ###############################################
-#Zusatz Script ausführen
+#Zusatz Script ausfÃ¼hren
 ###############################################
 echo "Ab zum B&B Script"
 
@@ -90,7 +90,7 @@ else
 
 jq -r '.devices[].accountName' /$TMP/.alexa.devicelist.json >  /$home/devices.conf
 
-#zusätzlich eingefügt
+#zusÃ¤tzlich eingefÃ¼gt
 
 
 Curl=$2
@@ -249,7 +249,7 @@ Titel=$( grep 'title:' $Ram/$Curl.txt |/bin/sed 's/title://g'  )
  Repeat=$( grep 'repeat:' $Ram/$Curl.txt |/bin/sed 's/repeat://g'  )
  Shuffle=$( grep 'shuffle:' $Ram/$Curl.txt |/bin/sed 's/shuffle://g'  )
 
-#Daten für Loxone Urldecoden Leerzeichen entfernen
+#Daten fÃ¼r Loxone Urldecoden Leerzeichen entfernen
 
 	Titel1=$(echo $Titel |/bin/sed -e 's/ /%20/g')
 	Interpret1=$(echo $Interpret |/bin/sed -e 's/ /%20/g')

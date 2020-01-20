@@ -1,17 +1,14 @@
-
 <?php
+require_once "loxberry_system.php";
+
 //$_SERVER['HTTP_REFERER']; 
-$Pfad=getcwd();
-$_home= "/opt/loxberry/webfrontend/cgi/plugins/alex2lox";
-$_data= "/opt/loxberry/data/plugins/alex2lox";
-    echo "Danke - Ihre Daten wurden geschrieben";
+$_home = LBPHTMLAUTHDIR;
+$_data = LBPDATADIR;
+   
+echo "Danke - Ihre Daten wurden geschrieben";
 
 $datei=$_POST['AlexaNr'];
  
-
-
-
-
   
 $handle = fopen ( "$_home/$datei.conf", "w" );
     fwrite ( $handle, 'LOXIP=' );

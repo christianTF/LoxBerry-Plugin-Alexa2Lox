@@ -1,13 +1,11 @@
-
 <?php
+require_once "loxberry_system.php";
 
-$Pfad=getcwd();
-$_home="/opt/loxberry/webfrontend/cgi/plugins/alex2lox";
-$_data= "/opt/loxberry/data/plugins/alex2lox";
-
+$_home=LBPHTMLAUTHDIR;
+$_data=LBPDATADIR;
   
 echo exec("sh $_home/del.sh -a");
-echo " Cookie wird gelöscht";
+echo " Cookie wird gelÃ¶scht";
 
 echo $_home;
      

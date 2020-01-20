@@ -1,5 +1,4 @@
 <?php
-
 require_once "loxberry_system.php";
 
 header('Content-Type: text/plain');

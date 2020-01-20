@@ -1,5 +1,6 @@
 <?php
-$_home= "/opt/loxberry/webfrontend/cgi/plugins/alex2lox";
+require_once "loxberry_system.php";
+
 //B&B Technik OG
 //Peter Bazala
 //02/2017
@@ -20,12 +21,10 @@ $handle = fopen ( "/run/shm/alex2lox/print.txt", "w" );
     fclose ( $handle );
    
 
-
-echo shell_exec("bash /$_home/print.sh /run/shm/alex2lox/print.txt"); 
-
+echo shell_exec("bash $lbphtmlauthdir/print.sh /run/shm/alex2lox/print.txt"); 
 
 
-echo " Datenübergabe: ","$Daten<br />\n";
+echo " DatenÃ¼bergabe: ","$Daten<br />\n";
 
 
 

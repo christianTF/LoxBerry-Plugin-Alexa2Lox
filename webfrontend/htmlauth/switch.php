@@ -1,4 +1,3 @@
-
 <?php
 $vers = file_get_contents('Vers.txt');
 
