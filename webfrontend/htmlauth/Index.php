@@ -1,236 +1,207 @@
-<div style="text-align: center;">
 <?php
 require_once "loxberry_system.php";
-include ("switch_2.php"); 
+require_once "loxberry_web.php";
 
-//B&B Technik OG
-//Peter Bazala
-//02/2017
-echo("<br />\n");
-echo("<br />\n");
-echo("B&B Technik OG:    Alexa <-> Lox 3.0<br />\n");
+// Local MQTT lib to provide LB1.x compatibility
+require_once "lib/mqtt.php";
 
-echo("-------------------------------------------------------------------------------------------------------------------------------------<br />\n"); 
-
-$Pfad=getcwd();
+define('TMP', '/tmp');
 
 
-			
-?>
-<style type="text/css">
+// Print LoxBerry header
+$template_title = "ALEXA <--> LOX " . LBSystem::pluginversion();
+$helplink = "https://www.loxwiki.eu/x/FAHqAw";
+$helptemplate = "help.html";
+LBWeb::lbheader($template_title, $helplink, $helptemplate);
 
-test [id=test] {
-    padding:15px 15px; 
-    background:#ccc; 
-    -webkit-border-radius: 5px;
-    border-radius: 5px;
-	width:6px;
-	height:20px; 
+// Read credentials from amazon.txt credentials file
+$creds = file(LBPHTMLAUTHDIR."/amazon.txt", FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+if( isset($creds) ) {
+	// Parse file
+	foreach( $creds as $line ) {
+		list($param, $value) = explode( '=', $line, 2);
+		if(strtolower($param) == 'email') {
+			$email = $value;
+			continue; 
+		}
+		elseif (strtolower($param) == 'passwort' ) {
+			$password = $value;
+			continue;
+		}
+		elseif (strtolower($param) == 'token' ) {
+			$token = $value;
+			continue;
+		}
+		elseif (strtolower($param) == 'use_oauth' ) {
+			$use_oauth = is_enabled($value) ? true : false;
+			continue;
+		}
+		
+	}
 }
 
-td {
-        
-       
-	
-	height:30px;
-	color:#FFFFFFF;
-      }
+// Query alexa_remote_control.sh version
+$alexa_remote_version = exec( LBPHTMLAUTHDIR . '/alexa_remote_control.sh --version' );
+if( empty($alexa_remote_version) ) {
+	$alexa_remote_version = '<span style="color:red">Keine Versionsnummer angegeben (evt. zu alte Script-Version)</span>';
+} else {
+	$alexa_remote_version = '<span style="color:green">'.$alexa_remote_version.'</span>';
+}
+
+// Read found devices from json
+$devicefile = TMP.'/.alexa.devicelist.json';
+if( file_exists( $devicefile ) ) {
+	$devicelist = json_decode( file_get_contents( $devicefile) );
+}
+
+// Query MQTT Settings
+$mqttcred = mqtt_connectiondetails();
+
+
+?>
+<style>
+.mono {
+	font-family: monospace;
+	font-weight: bold;
+	font-size: 135%;
+}
 
 </style>
 
 
 
-</form>
+<div class="wide">Amazon Alexa</div>
+<p>
+	Du kannst hier die Amazon Alexa Webseite öffnen, und Alexanders <a href="https://blog.loetzimmer.de/2017/10/amazon-alexa-hort-auf-die-shell-echo.html" target="_blank">"Lötzimmer" Alexa-Script</a> aktualisieren.<br>
+	Aktuelle Version von <span class="mono">alexa_remote_control.sh</span>: <b><?=$alexa_remote_version?></b>
+</p>
 
+<div class="ui-grid-a">
+	<div class="ui-block-a">
+		<button id="OpenAlexaWeb" class="ui-btn">Alexa Webinterface öffnen</button>
+	</div>
+	<div class="ui-block-b">
+		<button id="UpdateAlexaRemoteControl" class="ui-btn">Alexa Remote Control aktualisieren</button>
+	</div>
+</div>
+<br>
 
+<div class="wide">Amazon Zugangsdaten</div>
+<p>Zur Abfrage und Steuerung von Alexa gibt es zwei Authentifizierungsmethoden: Entweder Amazon Username+Passwort, oder OAUTH Authentifizierung. 
+Bei Benutzer+Passwort besteht die Gefahr, dass Amazon regelmäßig sogenannte Captcha's anfordert, wodurch keine Automatisierung mehr möglich ist. 
+Bei OAUTH-Authentifizierung musst du einen OAUTH-Token über die Webseite von Amazon erstellen. Dieser wird dann für die Authentifizierung verwendet und dürfte viel länger funktionieren.
+</p>
+<div class="ui-grid-a">
+	<div class="ui-block-a">
+		<label for="cred_oauth">OAuth-Authentifizierung</label>
+		<input type="radio" name="cred_selection" id="cred_oauth" class="custom">
+	</div>
+	<div class="ui-block-b">
+		<label for="cred_userpass">Benutzer+Passwort</label>
+		<input type="radio" name="cred_selection" id="cred_userpass" class="custom">
+	</div>
+</div>
 
-<table>
-<table align=center>
-<tr><td><font color='#008000'><span style="font-size:15pt">Update alexa_remote_control.sh von www.Loetzimmer.de</td></tr>
+<!-- User/Pass credentials -->
+<div id="credblock_userpass">
+	<div class="ui-field-contain">
+		<label for="amazon_email">Amazon E-Mail-Adresse:</label>
+		<input id="amazon_email" type="text" name="EMAIL" value="<?=$email?>">
+	</div>
+	<div class="ui-field-contain">
+		<label for="amazon_pass">Amazon Passwort:</label>
+		<input id="amazon_pass" type="password" name="Passwort" value="<?=$password?>">
+	</div>
+</div>
 
-<tr><td width="400">
+<!-- OAuth credentials -->
+<div id="credblock_oauth">
+	<div class="ui-field-contain">
+		<label for="amazon_token">Amazon Token:</label>
+		<input id="amazon_token" type="text" name="Token" value="<?=$token?>">
+	</div>
+</div>
 
-<form action="update.php">
-    <input type="submit" value="Do It">
-</form>
-</td></tr>
-
-</table>
-
+<!-- Found devices -->
+<div class="wide">Gefundene Geräte</div>
 
 <?php
-echo("<br />\n");
 
+	if( isset($devicelist) ) {
+		echo '<!-- Devices Flexbox container -->'."\n";
+		echo '<div style="display:flex;flex-wrap:wrap;">'."\n";
 
-
+		foreach( $devicelist->devices as $device ) {
+			echo '<div style="padding:20px;margin:15px;border-style:solid;border-width:1px;">'."\n";
+			echo "<b>". $device->accountName . "</b><br>\n";
+			if( $device->online == true ) {
+				echo '<span style="color:green;">Online</span>'."<br>\n";
+			} else {
+				echo '<span style="color:red;">Offline</span>'."<br>\n";
+			}
+			echo '<span style="font-size:80%">';
+			echo "Typ " . $device->deviceFamily . "<br>\n";
+			echo "Firmware " . $device->softwareVersion . "<br>\n";
+			echo '</span>'."\n";
+			echo '</div>'."\n";
+		}
 		
-
-$Pfad=getcwd();
-echo("<br />\n");
-
-
-
-
-
-
-?>
-
-<table>
-<table align=center>
-<tr><td <align=center> <width="500"><p><font color='#008000'><span style="font-size:18pt">Amazon Zugangsdaten eingeben<br></td></tr>
-
-</table>
-</table>
+		echo '</div>'."\n";
+		echo '<!-- Devices Flexbox End -->'."\n";
+	
+	} else {
+		echo '<p>Keine Echo-Geräte gefunden.</p>';
+	}
+	
+	
+?>	
 
 
-
-
-
-
-<form action="DatenWrite.php" method="post">
-<table>
-<table align=center>
-<tr><td width="400"><p>E-Mailadresse:<br></td></tr>
-<tr><td width="400"><input type="Text" name="EMAIL"></p></td></tr>
-
-<tr><td><p>Passwort:<br></td></tr>
-<tr><td><input type="Text" name="Passwort"></p></td></tr>
-
-
-<table align=center>
-<tr><td width="120"> <input type="submit" name="" value="Speichern u. Daten einlesen (kann ein paar Minuten dauern)"></td></tr>
-</table>
-</form>
-
+<!-- MQTT -->
+<div class="wide">MQTT</div>
+<p>Alle Daten werden per MQTT übertragen. Die Subscription dafür lautet <span class="mono">alexa2lox/#</span> und wird im MQTT Gateway Plugin automatisch eingetragen.</p>
 
 <?php
 
-echo("-------------------------------------------------------------------------------------------------------------------------------------<br />\n");
+	if ( !isset($mqttcred) ) {
 
 ?>
+		<p style="color:red"><b>MQTT Gateway nicht installiert!</b></p>
+		
+<?php
+
+	} else {
+		
+?>
+
+		<p style="color:green"><b>MQTT Gateway gefunden und wird verwendet.</b></p>
+		
+<?php
+
+	}
+	
+?>
+
+<!-- JavaScript code -->
+<script>
+$(function() {
+	// Radio button Auth setzen
+	$("#cred_oauth").attr("checked", <?=$use_oauth?>);
+	$("#cred_userpass").attr("checked", <?=!$use_oauth?>);
+	$("input[type='radio']").checkboxradio("refresh");
+
+	
+
+});
 
 
-
-
-<table>
-<table align=center>
-
-
-<tr><td>.</td></tr>
-<tr><td width="300"><p><font color='#008000'><span style="font-size:20pt">Daten Vom Miniserver<br></td></tr>
-<tr><td>.</td></tr>
-<tr><td>.</td></tr>
-</table>
-</form>
-</table>
-
-<form action="LoxWrite.php" method="post">
-<table>
-<table align=center>
+</script>
 
 <?php
-$_home=LBPHTMLAUTHDIR;
-$file=LBPHTMLAUTHDIR."/alexa.devicelist.json";
-$msdaten= file_get_contents(LBSCONFIGDIR.'/general.cfg');				
-$json = file_get_contents(LBPHTMLAUTHDIR.'/devices.conf');
+	
+	// Print LoxBerry footer 
 
 
-$filename = LBPHTMLAUTHDIR.'/devices.conf'; 
-
-     $_content = file( $filename ); 
-
-     $menge=count($_content); 
-
-
-echo "Es stehen $menge Amazon Geraete zur verfuegung, ";
-echo("<br />\n");
-
-
-echo("<br />\n");
-
-
-$lines = file(LBPHTMLAUTHDIR.'/devices.conf');
-
-
-
-
-$menge = $menge+1;
-for($i=0; $i < $menge; $i++) {
-${Wert.$i}=$lines[$i];
-
-
-echo "<font color='#FF0000'> | </font>","<font color='#0a10c2'>",$lines[$i], "</font>"; 
-
-}
-echo("<br />\n");
-
-echo("<br />\n");
-
-
-
-
-
-
-
-
-
+	LBWeb::lbfooter();
+	
 ?>
-
-
-
-
-
-
-<tr><td>.</td></tr>
-<tr><td width="400"><p>Bitte Name von Alexa Auswaehlen (es duerfen keine Umlaute/Sonderzeichen enthalten sein) <br></td></tr>
-
-<tr><td>
-<select name="AlexaNr">
-	<option value = <?php echo $Wert0; ?>><?php echo $Wert0; ?></option>
-	<option value = <?php echo $Wert1; ?>><?php echo $Wert1; ?></option>
-	<option value = <?php echo $Wert2; ?>><?php echo $Wert2; ?></option>
-	<option value = <?php echo $Wert3; ?>><?php echo $Wert3; ?></option>
-	<option value = <?php echo $Wert4; ?>><?php echo $Wert4; ?></option>
-	<option value = <?php echo $Wert5; ?>><?php echo $Wert5; ?></option>
-	<option value = <?php echo $Wert6; ?>><?php echo $Wert6; ?></option>
-	<option value = <?php echo $Wert7; ?>><?php echo $Wert7; ?></option>
-	<option value = <?php echo $Wert8; ?>><?php echo $Wert8; ?></option>
-	<option value = <?php echo $Wert9; ?>><?php echo $Wert9; ?></option>
- </select>
-
-
-<tr><td><p>Lox IP xx.xx.xx.xx:xx<br></td></tr>
-<tr><td><input type="Text" name="LOXIP"></p></td></tr>
-
-<tr><td><p>Lox User<br></td></tr>
-<tr><td><input type="Text" name="LOXUSER"></p></td></tr>
-
-<tr><td><p>Lox Passwort<br></td></tr>
-<tr><td><input type="Text" name="LOXPASS"></p></td></tr>
-
-<tr><td><p>UDP Port (volume,Status,Shuffle,..) <br></td></tr>
-<tr><td><input type="Text" name="UDPPORT"></p></td></tr>
-
-<tr><td><p>HTTP Port (ohne Angabe wird automatisch 80 vorgegeben) <br></td></tr>
-<tr><td><input type="Text" name="HTTPPORT"></p></td></tr>
-
-<tr><td><p>VTI f Titel ohne VTI<br></td></tr>
-<tr><td><input type="Text" name="LOXTitel"></p></td></tr>
-
-<tr><td><p>VTI f Interpret ohne VTI<br></td></tr>
-<tr><td><input type="Text" name="LOXInterpret"></p></td></tr>
-
-<tr><td><p>VTI f Album ohne VTI<br></td></tr>
-<tr><td><input type="Text" name="LOXAlbum"</p></td></tr>
-
-<tr><td width="100"><input type="submit" name="" value="speichern"></td></tr>
-</table>
-</form>
-
-
-
-
-</table>
-
-</form>
-<?php include(LBSTEMPLATEDIR.'/de/footer.html'); ?>
