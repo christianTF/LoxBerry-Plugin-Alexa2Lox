@@ -10,24 +10,24 @@
 # during installation
 #
 if [ -d /run/shm/alex2lox/ ] ; then 
-bash  /opt/loxberry/webfrontend/cgi/plugins/alex2lox/start.sh -a
+bash  REPLACELBPHTMLAUTHDIR/start.sh -a
 cp $PDATA/.alexa.devicelist.json  $PDATA/tmp/.alexa.devicelist.json
 cp $PDATA/.alexa.cookie  $PDATA/.alexa.cookie
 echo Ram Disk vorhanden
 chown -cR loxberry /run/shm/alex2lox
 else
-bash  /opt/loxberry/webfrontend/cgi/plugins/alex2lox/start.sh -a
+bash  REPLACELBPHTMLAUTHDIR/start.sh -a
 cp $PDATA/.alexa.devicelist.json  $PDATA/tmp/.alexa.devicelist.json
 cp $PDATA/.alexa.cookie  $PDATA/.alexa.cookie
 mkdir /run/shm/alex2lox
 chmod a+w /run/shm/alex2lox > /dev/null 2>&1
 #chown -cR loxberry /run/shm/alex2lox
-chmod -R 0777 /opt/loxberry/data/plugins/alex2lox
+chmod -R 0777 REPLACELBPDATADIR
 
 
 fi
-bash  /opt/loxberry/webfrontend/cgi/plugins/alex2lox/start.sh -a
+bash  REPLACELBPHTMLAUTHDIR/start.sh -a
 cp $PDATA/.alexa.devicelist.json  /tmp/.alexa.devicelist.json
 cp $PDATA/.alexa.cookie  /tmp/.alexa.cookie
-cp -a /opt/loxberry/data/plugins/alex2lox/. /tmp/
+cp -a REPLACELBPDATADIR/. /tmp/
 exit 0
