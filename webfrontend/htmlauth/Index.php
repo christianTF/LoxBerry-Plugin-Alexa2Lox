@@ -43,12 +43,13 @@ if( isset($creds) ) {
 // Query alexa_remote_control.sh version
 $alexa_remote_version = exec( LBPHTMLAUTHDIR . '/alexa_remote_control.sh --version' );
 if( empty($alexa_remote_version) ) {
-	$alexa_remote_version = '<span style="color:red">Keine Versionsnummer angegeben (evt. zu alte Script-Version)</span>';
+	$alexa_remote_version = '<span class="red">Keine Versionsnummer angegeben (evt. zu alte Script-Version)</span>';
 } else {
-	$alexa_remote_version = '<span style="color:green">'.$alexa_remote_version.'</span>';
+	$alexa_remote_version = '<span class="green">'.$alexa_remote_version.'</span>';
 }
 
-// Read found devices from json
+// Refresh devices and read found devices from json
+exec( LBPHTMLAUTHDIR . '/alexa_remote_control.sh -a' );
 $devicefile = TMP.'/.alexa.devicelist.json';
 if( file_exists( $devicefile ) ) {
 	$devicelist = json_decode( file_get_contents( $devicefile) );
@@ -66,6 +67,15 @@ $mqttcred = mqtt_connectiondetails();
 	font-size: 135%;
 }
 
+.green {
+	color: green;
+	font-weight: bold;
+}
+
+.red {
+	color: red;
+	font-weight: bold;
+
 </style>
 
 
@@ -73,7 +83,7 @@ $mqttcred = mqtt_connectiondetails();
 <div class="wide">Amazon Alexa</div>
 <p>
 	Du kannst hier die Amazon Alexa Webseite öffnen, und Alexanders <a href="https://blog.loetzimmer.de/2017/10/amazon-alexa-hort-auf-die-shell-echo.html" target="_blank">"Lötzimmer" Alexa-Script</a> aktualisieren.<br>
-	Aktuelle Version von <span class="mono">alexa_remote_control.sh</span>: <b><?=$alexa_remote_version?></b>
+	Aktuelle Version von <span class="mono">alexa_remote_control.sh</span>: <b><span id="arc_version"><?=$alexa_remote_version?></span></b>
 </p>
 
 <div class="ui-grid-a">
@@ -189,6 +199,25 @@ $(function() {
 	$("#cred_oauth").attr("checked", <?=$use_oauth?>);
 	$("#cred_userpass").attr("checked", <?=!$use_oauth?>);
 	$("input[type='radio']").checkboxradio("refresh");
+
+
+	// alexa_remote_control aktualisieren Knopf
+	$("#UpdateAlexaRemoteControl").click( function() {
+		$("#UpdateAlexaRemoteControl").attr('disabled', 'disabled');
+		$("#arc_version").empty();
+		$.ajax( 'update.php' )
+			.done(function( updateResp ) {
+				console.log("New alexa_remote_control version", updateResp.version);
+				$("#arc_version").html(updateResp.version).addClass("green");
+			})
+			.fail(function() {
+				console.log("Update alexa_remote_control failed");
+				$("#arc_version").html("Update hat nicht funktioniert :-(").addClass("red");
+			})
+			.always(function() {
+				$("#UpdateAlexaRemoteControl").attr('disabled', null);
+			});
+	});
 
 	
 
