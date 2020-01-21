@@ -1,6 +1,7 @@
 <?php
 require_once "loxberry_system.php";
 require_once "loxberry_web.php";
+require_once "lib/alexa_env.php";
 
 // Local MQTT lib to provide LB1.x compatibility
 require_once "lib/mqtt.php";
@@ -13,32 +14,6 @@ $template_title = "ALEXA <--> LOX " . LBSystem::pluginversion();
 $helplink = "https://www.loxwiki.eu/x/FAHqAw";
 $helptemplate = "help.html";
 LBWeb::lbheader($template_title, $helplink, $helptemplate);
-
-// Read credentials from amazon.txt credentials file
-$creds = file(LBPHTMLAUTHDIR."/amazon.txt", FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-if( isset($creds) ) {
-	// Parse file
-	foreach( $creds as $line ) {
-		list($param, $value) = explode( '=', $line, 2);
-		if(strtolower($param) == 'email') {
-			$email = $value;
-			continue; 
-		}
-		elseif (strtolower($param) == 'passwort' ) {
-			$password = $value;
-			continue;
-		}
-		elseif (strtolower($param) == 'token' ) {
-			$token = $value;
-			continue;
-		}
-		elseif (strtolower($param) == 'use_oauth' ) {
-			$use_oauth = is_enabled($value) ? true : false;
-			continue;
-		}
-		
-	}
-}
 
 // Query alexa_remote_control.sh version
 $alexa_remote_version = exec( LBPHTMLAUTHDIR . '/alexa_remote_control.sh --version' );
@@ -75,6 +50,11 @@ $mqttcred = mqtt_connectiondetails();
 .red {
 	color: red;
 	font-weight: bold;
+}
+
+.grey {
+	color: #888888;
+}
 
 </style>
 
@@ -97,40 +77,59 @@ $mqttcred = mqtt_connectiondetails();
 <br>
 
 <div class="wide">Amazon Zugangsdaten</div>
-<p>Zur Abfrage und Steuerung von Alexa gibt es zwei Authentifizierungsmethoden: Entweder Amazon Username+Passwort, oder OAUTH Authentifizierung. 
+<p>Zur Abfrage und Steuerung von Alexa gibt es zwei Authentifizierungsmethoden: Entweder Amazon Username+Passwort, oder Zwei-Schritt-Verifizierung. 
 Bei Benutzer+Passwort besteht die Gefahr, dass Amazon regelmäßig sogenannte Captcha's anfordert, wodurch keine Automatisierung mehr möglich ist. 
-Bei OAUTH-Authentifizierung musst du einen OAUTH-Token über die Webseite von Amazon erstellen. Dieser wird dann für die Authentifizierung verwendet und dürfte viel länger funktionieren.
+Bei Zwei-Schritt-Verifizierung (<a class="openhelp" href="#">Hilfe</a>) musst du einen Token über die Webseite von Amazon erstellen. Dieser wird dann für die Authentifizierung verwendet und funktioniert (nach aktueller Erkenntnis) ohne weitere, manuelle Eingriffe.
 </p>
-<div class="ui-grid-a">
-	<div class="ui-block-a">
-		<label for="cred_oauth">OAuth-Authentifizierung</label>
-		<input type="radio" name="cred_selection" id="cred_oauth" class="custom">
+<form id="credentials_form" action="DatenWrite.php" method="post">
+	<div class="ui-grid-a">
+		<div class="ui-block-a">
+			<label for="cred_oauth">OAuth-Authentifizierung</label>
+			<input type="radio" name="cred_selection" id="cred_oauth" class="custom" value="true">
+		</div>
+		<div class="ui-block-b">
+			<label for="cred_userpass">Benutzer+Passwort</label>
+			<input type="radio" name="cred_selection" id="cred_userpass" class="custom" value="false">
+		</div>
 	</div>
-	<div class="ui-block-b">
-		<label for="cred_userpass">Benutzer+Passwort</label>
-		<input type="radio" name="cred_selection" id="cred_userpass" class="custom">
-	</div>
-</div>
 
-<!-- User/Pass credentials -->
-<div id="credblock_userpass">
-	<div class="ui-field-contain">
-		<label for="amazon_email">Amazon E-Mail-Adresse:</label>
-		<input id="amazon_email" type="text" name="EMAIL" value="<?=$email?>">
+	<!-- User/Pass credentials -->
+	<div id="credblock_userpass">
+		<div class="ui-field-contain">
+			<label for="amazon_email">Amazon E-Mail-Adresse:</label>
+			<input id="amazon_email" type="text" name="EMAIL" value="<?=$email?>">
+		</div>
+		<div class="ui-field-contain">
+			<label for="amazon_pass">Amazon Passwort:</label>
+			<input id="amazon_pass" type="password" name="Passwort" value="<?=$password?>">
+		</div>
 	</div>
-	<div class="ui-field-contain">
-		<label for="amazon_pass">Amazon Passwort:</label>
-		<input id="amazon_pass" type="password" name="Passwort" value="<?=$password?>">
-	</div>
-</div>
 
-<!-- OAuth credentials -->
-<div id="credblock_oauth">
-	<div class="ui-field-contain">
-		<label for="amazon_token">Amazon Token:</label>
-		<input id="amazon_token" type="text" name="Token" value="<?=$token?>">
+	<!-- OAuth credentials -->
+	<div id="credblock_oauth">
+		<div class="ui-field-contain">
+			<label for="amazon_token">Amazon Token:</label>
+			<input id="amazon_token" type="text" name="Token" value="<?=$token?>">
+		</div>
 	</div>
-</div>
+	
+	<div id="credblock_requestkey">
+		<div class="ui-field-contain">
+			<label for="oathtoolkey">Nachdem du den Amazon Token oben eingetragen hast, klicke hier, um den nun bei Amazon abgefragten Schlüssel zu erhalten.</label>
+			<button id="oathtoolkey" class="ui-btn">Zwei-Schritt-Schlüssel anzeigen</button>
+			&nbsp;
+			<p id="oathresponse" style="text-align:center;">&nbsp;</p>
+			
+		</div>
+	</div>
+	
+	
+	
+	
+	<!-- Submit button -->
+    <input type="submit" data-icon="check" value="Speichern">
+
+</form>
 
 <!-- Found devices -->
 <div class="wide">Gefundene Geräte</div>
@@ -219,7 +218,37 @@ $(function() {
 			});
 	});
 
+	// oathtool Schlüssel abrufen und anzeigen
+	$("#oathtoolkey").click( function () {
+		$("#oathtoolkey").attr('disabled', 'disabled');
+		$("#oathresponse").html('Schlüssel wird abgefragt...');
+		$("#oathresponse").removeClass("red").addClass("grey");
+		
+		$.post( 'oathrequest.php', $("#credentials_form").serialize() )
+			.done(function( oathResp ) {
+				console.log("oathrequest.php response", oathResp );
+				$("#oathresponse").removeClass("grey");
+				$("#oathresponse").html('Einmal-Schlüssel bei Amazon eingeben: <span class="green" style="font-size:130%">'+oathResp.key+'</span><br><b>Speichern nicht vergessen!');
+				
+			})
+			.fail(function( oathResp ) {
+				console.log("oathrequest.php failed", oathResp);
+				$("#oathresponse").html("Abfrage ist fehlgeschlagen");
+				if( typeof oathResp.responseJSON.errormsg != 'undefined' ) {
+					$("#oathresponse").append(": "+oathResp.responseJSON.errormsg);
+				}
+				$("#oathresponse").removeClass("grey").addClass("red");
+			})
+			.always(function() {
+				$("#oathtoolkey").attr('disabled', null);
+		});
+	});	
 	
+	
+	// Hilfe öffnen und schließen bei Klick
+	$(".openhelp").click( function() {
+		$("#infopanel").panel("toggle");
+	});
 
 });
 
