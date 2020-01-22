@@ -1,12 +1,11 @@
 <?php
+error_log("index.php --------------------------------------------------------------");
 require_once "loxberry_system.php";
 require_once "loxberry_web.php";
 require_once "lib/alexa_env.php";
 
 // Local MQTT lib to provide LB1.x compatibility
 require_once "lib/mqtt.php";
-
-define('TMP', '/tmp');
 
 
 // Print LoxBerry header
@@ -24,10 +23,14 @@ if( empty($alexa_remote_version) ) {
 }
 
 // Refresh devices and read found devices from json
-exec( LBPHTMLAUTHDIR . '/alexa_remote_control.sh -a' );
+$output = `$lbphtmlauthdir/alexa_remote_control.sh -a`;
+error_log("alexa_remote_control.sh -a OUTPUT:");
+error_log($output);
 $devicefile = TMP.'/.alexa.devicelist.json';
 if( file_exists( $devicefile ) ) {
 	$devicelist = json_decode( file_get_contents( $devicefile) );
+} else {
+	error_log("devicelist does not exist");
 }
 
 // Query MQTT Settings
@@ -84,8 +87,8 @@ Bei Zwei-Schritt-Verifizierung (<a class="openhelp" href="#">Hilfe</a>) musst du
 <form id="credentials_form" action="DatenWrite.php" method="post">
 	<div class="ui-grid-a">
 		<div class="ui-block-a">
-			<label for="cred_oauth">OAuth-Authentifizierung</label>
-			<input type="radio" name="cred_selection" id="cred_oauth" class="custom" value="true">
+			<label for="cred_oath">Zwei-Schritt-Verifizierung</label>
+			<input type="radio" name="cred_selection" id="cred_oath" class="custom" value="true">
 		</div>
 		<div class="ui-block-b">
 			<label for="cred_userpass">Benutzer+Passwort</label>
@@ -106,7 +109,7 @@ Bei Zwei-Schritt-Verifizierung (<a class="openhelp" href="#">Hilfe</a>) musst du
 	</div>
 
 	<!-- OAuth credentials -->
-	<div id="credblock_oauth">
+	<div id="credblock_oath">
 		<div class="ui-field-contain">
 			<label for="amazon_token">Amazon Token:</label>
 			<input id="amazon_token" type="text" name="Token" value="<?=$token?>">
@@ -195,8 +198,8 @@ Bei Zwei-Schritt-Verifizierung (<a class="openhelp" href="#">Hilfe</a>) musst du
 <script>
 $(function() {
 	// Radio button Auth setzen
-	$("#cred_oauth").attr("checked", <?=$use_oauth?>);
-	$("#cred_userpass").attr("checked", <?=!$use_oauth?>);
+	$("#cred_oath").attr("checked", <?=$use_oath?>);
+	$("#cred_userpass").attr("checked", <?=!$use_oath?>);
 	$("input[type='radio']").checkboxradio("refresh");
 
 

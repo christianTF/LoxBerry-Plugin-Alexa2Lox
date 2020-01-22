@@ -1,5 +1,8 @@
 <?php
+header('Content-Type: text/plain');
+
 require_once "loxberry_system.php";
+require_once "lib/alexa_env.php";
 
 $_home=LBPHTMLAUTHDIR;
 $_data=LBPDATADIR;
@@ -8,25 +11,15 @@ $_data=LBPDATADIR;
 //Peter Bazala
 //02/2017
 
- echo("<br />\n");
- echo("<br />\n");
+echo("\n");
 
-echo("B&B Technik OG:<br />\n");
-echo("<br />\n");
-echo("<br />\n");
+echo("B&B Technik OG:\n");
+echo("\n\n");
 
 $Daten = ($_GET["daten"]);
 
+passthru("bash /$_home/start.sh $Daten"); 
 
-
-
-echo shell_exec("bash /$_home/start.sh $Daten"); 
-
-echo " Datenübergabe: ","$Daten<br />\n";
-
-
-
-
-
+echo " Datenübergabe: ","$Daten\n";
 
 ?>

@@ -14,15 +14,33 @@ Ram=$LBPHTMLAUTHDIR
 echo "Verwende Plugin Verzeichniss"
 fi
 
+echo "Prüfe auf Environment Variablen"
+if [ "${ALEXA2LOXENV}" != "php" ]; then
+	echo Lese Umgebungsvariablen vom Configfile
+	EMAIL=$( grep 'EMAIL=' $LBPHTMLAUTHDIR/amazon.txt |/bin/sed 's/EMAIL=//g'  )
+	PASSWORD=$( grep 'Passwort=' $LBPHTMLAUTHDIR/amazon.txt |/bin/sed 's/Passwort=//g'  )
+	USE_OATH=$( grep 'use_oath=' $LBPHTMLAUTHDIR/amazon.txt |/bin/sed 's/use_oath=//g'  )
+	if [ "$USE_OATH" = "true" ]; then
+		MFA_SECRET=$( grep 'TOKEN=' $LBPHTMLAUTHDIR/amazon.txt |/bin/sed 's/TOKEN=//g'  )
+		echo MFA_SECRET $MFA_SECRET
+	fi
+	export EMAIL=$EMAIL
+	export PASSWORD=$PASSWORD
+	export MFA_SECRET="$MFA_SECRET"
+	export LANGUAGE=de,en-US;q=0.7,en;q=0.3
+else
+	echo Von PHP aufgerufen - Umgebungsvariablen sollten gesetzt sein
+fi  
+
+echo EMAIL: ${EMAIL}
+echo MFA_SECRET:  ${MFA_SECRET}
+echo
+
 Data1=$1
 Data2=$2
 Data3=$3
 Data4=$4
 Data5=$5
-
-EMAIL=$( grep 'EMAIL=' $LBPHTMLAUTHDIR/amazon.txt |/bin/sed 's/EMAIL=//g'  )
-PASSWORD=$( grep 'Passwort=' $LBPHTMLAUTHDIR/amazon.txt |/bin/sed 's/Passwort=//g'  )
-
 
 
 echo $Data1 $Data2 $Data3 $Data4 $Data5
@@ -34,18 +52,15 @@ if [ "$1" != "-z" ] ; then
 #Original Script ausführen
 ###############################################
 
-echo "Ab zu Remote Script"
-export EMAIL=$EMAIL
-export PASSWORD=$PASSWORD
-sh ./alexa_remote_control.sh $Data1 $Data2 $Data3 $Data4$Data5
-exit 1
-   fi
+	echo "Ab zu Remote Script"
+	sh ./alexa_remote_control.sh $@
+	exit 1
+fi
+
 ###############################################
 #Zusatz Script ausführen
 ###############################################
 echo "Ab zum B&B Script"
-
-
 
 
 if [ "$2" = "Einkaufsliste" ] ; then

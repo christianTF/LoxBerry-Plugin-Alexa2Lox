@@ -15,7 +15,7 @@ $handle = fopen ( "$_home/amazon.txt", "w" );
 	fwrite ( $handle, 'TOKEN=' );
     fwrite ( $handle, $_POST['Token'] );  
     fwrite ( $handle, "\n" );
-	fwrite ( $handle, 'use_oauth=' );
+	fwrite ( $handle, 'use_oath=' );
 	if( is_enabled($_POST['cred_selection']) ) {
 		fwrite ( $handle, 'true' );
 	} else {
