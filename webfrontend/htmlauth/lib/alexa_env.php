@@ -8,6 +8,7 @@ require_once "loxberry_system.php";
 
 define("ARCPATH", LBPHTMLAUTHDIR.'/alexa_remote_control.sh');
 define('TMP', '/tmp');
+define('TOPIC', 'alexa2lox');
 
 $email = null;
 $password = null;

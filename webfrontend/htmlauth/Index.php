@@ -7,7 +7,6 @@ require_once "lib/alexa_env.php";
 // Local MQTT lib to provide LB1.x compatibility
 require_once "lib/mqtt.php";
 
-
 // Print LoxBerry header
 $template_title = "ALEXA <--> LOX " . LBSystem::pluginversion();
 $helplink = "https://www.loxwiki.eu/x/FAHqAw";

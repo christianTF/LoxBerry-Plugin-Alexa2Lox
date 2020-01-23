@@ -5,6 +5,7 @@
 ## Funktions-Definitionen
 ##
 
+# Devicetyp und Seriennummer aus Gerätename auslesen
 function query_device {
 
 	DEVICES=$(jq -r '.devices[].accountName' /$TMP/.alexa.devicelist.json)
@@ -423,31 +424,37 @@ elif [ "${ACTION,,}" == "playerstatus" ] || [ "${ACTION,,}" = "playerstate" ]; t
 	echo Playerstatus
 	query_device
 	query_playerstate
+	exit
 
 elif [ "${ACTION,,}" == "einkaufsliste" ] || [ "${ACTION,,}" = "shoppinglist" ]; then
 
 	echo Einkaufsliste
 	query_shoppinglist
+	exit
 
 elif [ "${ACTION,,}" = "drucken" ] || [ "${ACTION,,}" = "print" ]; then
 
 	echo Drucken
 	lp /$Ram/EkListe
+	exit
 
 elif [ "${ACTION,,}" = "benachrichtigungen" ] || [ "${ACTION,,}" = "notifications" ]; then
 
 	echo Benachrichtigungen
 	query_notifications
+	exit
 
 elif [ "${ACTION,,}" = "bluetooth" ]; then
 
 	echo Bluetooth
 	query_bluetooth
+	exit
 
 elif [ "${ACTION,,}" = "kalender" ] || [ "${ACTION,,}" = "calendar" ]; then
 
 	echo Kalender
 	query_calendar
+	exit
 	
 elif [ "${ACTION,,}" = "all" ]; then
 	
@@ -459,11 +466,13 @@ elif [ "${ACTION,,}" = "all" ]; then
 	query_notifications
 	query_bluetooth
 	query_calendar
+	exit
 
 else
 
 	# Funktionsaufruf query_device
 	echo "Kein bekannter Befehl ausgeführt"
+	exit
 
 fi
 
