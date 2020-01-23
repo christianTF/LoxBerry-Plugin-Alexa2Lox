@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 . ./_plugindirs.sh
 home="$LBPHTMLAUTHDIR"
@@ -101,39 +101,40 @@ fi
 
 else
 
+## 
+## Status eines Players abfragen und per MQTT senden
+##
 
-
-jq -r '.devices[].accountName' /$TMP/.alexa.devicelist.json >  /$home/devices.conf
-
-#zusätzlich eingefügt
-
+DEVICES=$(jq -r '.devices[].accountName' /$TMP/.alexa.devicelist.json)
 
 Curl=$2
 DEVICE=$2
 echo $Curl
 
+# LOXIP=$( grep 'LOXIP=' $home/$Curl.conf |/bin/sed 's/LOXIP=//g'  )
+# LOXPASS=$( grep 'LOXPASS=' $home/$Curl.conf |/bin/sed 's/LOXPASS=//g'  )
+# LOXUSER=$( grep 'LOXUSER=' $home/$Curl.conf |/bin/sed 's/LOXUSER=//g'  )
+# LoxTitel=$( grep 'LoxTitel=' $home/$Curl.conf |/bin/sed 's/LoxTitel=//g'  )
+# LoxInterpret=$( grep 'LoxInterpret=' $home/$Curl.conf |/bin/sed 's/LoxInterpret=//g'  )
+# LoxAlbum=$( grep 'LoxAlbum=' $home/$Curl.conf |/bin/sed 's/LoxAlbum=//g'  )
+# UDPPORT=$( grep 'UDPPORT=' $home/$Curl.conf |/bin/sed 's/UDPPORT=//g'  )
+# HTTPPORT=$( grep 'HTTPPORT=' $home/$Curl.conf |/bin/sed 's/HTTPPORT=//g'  )
 
 
-LOXIP=$( grep 'LOXIP=' $home/$Curl.conf |/bin/sed 's/LOXIP=//g'  )
-LOXPASS=$( grep 'LOXPASS=' $home/$Curl.conf |/bin/sed 's/LOXPASS=//g'  )
-LOXUSER=$( grep 'LOXUSER=' $home/$Curl.conf |/bin/sed 's/LOXUSER=//g'  )
-LoxTitel=$( grep 'LoxTitel=' $home/$Curl.conf |/bin/sed 's/LoxTitel=//g'  )
-LoxInterpret=$( grep 'LoxInterpret=' $home/$Curl.conf |/bin/sed 's/LoxInterpret=//g'  )
-LoxAlbum=$( grep 'LoxAlbum=' $home/$Curl.conf |/bin/sed 's/LoxAlbum=//g'  )
-UDPPORT=$( grep 'UDPPORT=' $home/$Curl.conf |/bin/sed 's/UDPPORT=//g'  )
-HTTPPORT=$( grep 'HTTPPORT=' $home/$Curl.conf |/bin/sed 's/HTTPPORT=//g'  )
+# if [ -z "$HTTPPORT" ] ; then
+# HTTPPORT=80
+# fi
 
+# if [ $HTTPPORT -eq 80 ] ; then
+# HTTPPORT=80
+# fi
 
-if [ -z "$HTTPPORT" ] ; then
-HTTPPORT=80
-fi
+	echo Device: $DEVICE
 
-if [ $HTTPPORT -eq 80 ] ; then
-HTTPPORT=80
-fi
+	DEVICE=$(echo ${DEVICE,,} | sed -r 's/%20/ /g')
 
+	echo Device: $DEVICE
 
-	DEVICE=$(echo ${DEVICE} | sed -r 's/%20/ /g')
 	
 	if [ -z "${DEVICE}" ] ; then
 		# if no device was supplied, use the first Echo(dot) in device list
@@ -142,6 +143,11 @@ fi
 		echo ${DEVICE}
 	fi
 
+	
+	DEVICE=$(jq --arg device "${DEVICE}" -r '.devices[] | select( .accountName|ascii_downcase == $device) | .accountName' ${DEVLIST})
+	
+	echo Device: $DEVICE
+	
 	DEVICETYPE=$(jq --arg device "${DEVICE}" -r '.devices[] | select(.accountName == $device) | .deviceType' ${DEVLIST})
 	DEVICESERIALNUMBER=$(jq --arg device "${DEVICE}" -r '.devices[] | select(.accountName == $device) | .serialNumber' ${DEVLIST})
 	MEDIAOWNERCUSTOMERID=$(jq --arg device "${DEVICE}" -r '.devices[] | select(.accountName == $device) | .deviceOwnerCustomerId' ${DEVLIST})
@@ -153,96 +159,187 @@ fi
 
 
 
-
-
-
-#echo -n $Curl Daten auslesen | nc -4u $LOXIP $UDPPORT
-	
-
-
-
 #Playerstatus abfragen
+# Response-JSON in Variable PLAYER speichern
 
-curl -s -b  ${COOKIE} -A "Mozilla/5.0" --compressed -H "DNT: 1" -H "Connection: keep-alive" -L\
- -H "Content-Type: application/json; charset=UTF-8" -H "Referer: https://alexa.amazon.de/spa/index.html" -H "Origin: https://alexa.amazon.de"\
- -H "csrf: $(awk '$0 ~/.amazon.de.*csrf[\s\t]/ {print $7}' ${COOKIE})"\
- "https://alexa.amazon.de/api/np/player?deviceSerialNumber=$DEVICESERIALNUMBER&deviceType=$DEVICETYPE" > /$Ram/$Curl.txt
+echo Player abfragen
+
+PLAYER=$(curl \
+-s \
+ -b  ${COOKIE} \
+ -A "Mozilla/5.0" \
+ --compressed \
+ -H "DNT: 1" \
+ -H "Connection: keep-alive" \
+ -L \
+ -H "Content-Type: application/json; charset=UTF-8" \
+ -H "Referer: https://alexa.amazon.de/spa/index.html" \
+ -H "Origin: https://alexa.amazon.de" \
+ -H "csrf: $(awk '$0 ~/.amazon.de.*csrf[\s\t]/ {print $7}' ${COOKIE})" \
+ "https://alexa.amazon.de/api/np/player?deviceSerialNumber=$DEVICESERIALNUMBER&deviceType=$DEVICETYPE")
+
+# echo $PLAYER
+
+
+# jq alternative operator:
+#	// empty ändert den String "null" in eine leere Ausgabe
+
+Title=$(echo $PLAYER | jq -M -r '.playerInfo.infoText.title  // empty')
+Album=$(echo $PLAYER | jq -e -M -r '.playerInfo.infoText.subText1 // empty')
+Interpret=$(echo $PLAYER | jq -M -r '.playerInfo.infoText.subText2  // empty')
+Volume=$(echo $PLAYER | jq -M -r '.playerInfo.volume.volume  // empty')
+Muted=$(echo $PLAYER | jq -M -r '.playerInfo.volume.muted')
+Repeat=$(echo $PLAYER | jq -M -r '.playerInfo.transport.repeat // empty')
+Shuffle=$(echo $PLAYER | jq -M -r '.playerInfo.transport.shuffle // empty')
+Bild=$(echo $PLAYER | jq -M -r '.playerInfo.mainArt.url // empty')
+Status=$(echo $PLAYER | jq -M -r '.playerInfo.state // empty')
+Mediaid=$(echo $PLAYER | jq -M -r '.playerInfo.mediaId // empty')
+Queueid=$(echo $PLAYER | jq -M -r '.playerInfo.queueId // empty')
+Provider=$(echo $PLAYER | jq -M -r '.playerInfo.provider.providerName // empty')
+
+ # Album=$( grep 'subText1:' $Ram/$Curl.txt |/bin/sed 's/subText1://g'  )
+ # Interpret=$( grep 'subText2:' $Ram/$Curl.txt |/bin/sed 's/subText2://g'  )
+ # Volume=$( grep 'volume:' $Ram/$Curl.txt |/bin/sed 's/volume://g'  )
+ # Bild=$( grep 'url:' $Ram/$Curl.txt |/bin/sed 's/url://g'  )
+ # Status=$( grep 'state:' $Ram/$Curl.txt |/bin/sed 's/state://g'  )
+ # Mediaid=$( grep 'mediaId:' $Ram/$Curl.txt |/bin/sed 's/mediaId://g'  )
+ # Queueid=$( grep 'queueId:' $Ram/$Curl.txt |/bin/sed 's/queueId://g'  )
+ # Provider=$( grep 'providerName:' $Ram/$Curl.txt |/bin/sed 's/providerName://g'  )
+ # Repeat=$( grep 'repeat:' $Ram/$Curl.txt |/bin/sed 's/repeat://g'  )
+ # Shuffle=$( grep 'shuffle:' $Ram/$Curl.txt |/bin/sed 's/shuffle://g'  )
+
+echo Title:     $Title
+echo Album:     $Album
+echo Interpret: $Interpret
+echo Volume:    $Volume
+echo Muted:     $Muted
+echo Repeat:    $Repeat
+echo Shuffle:   $Shuffle
+echo Bild:      $Bild
+echo Status:    $Status
+echo Mediaid:   $Mediaid
+echo Queueid:   $Queueid
+echo Provider:  $Provider
+
+JSON_FORMAT='{ "topic":"%s", "value":"%s", "retain":"%s" }'
+echo Sende an MQTT Gateway...
+printf "$JSON_FORMAT" "$TOPIC/$DEVICE/title" "$Title" "0" > /dev/udp/127.0.0.1/$MQTTUDP
+printf "$JSON_FORMAT" "$TOPIC/$DEVICE/album" "$Album" "0" > /dev/udp/127.0.0.1/$MQTTUDP
+printf "$JSON_FORMAT" "$TOPIC/$DEVICE/artist" "$Interpret" "0" > /dev/udp/127.0.0.1/$MQTTUDP
+printf "$JSON_FORMAT" "$TOPIC/$DEVICE/volume" "$Volume" "0" > /dev/udp/127.0.0.1/$MQTTUDP
+printf "$JSON_FORMAT" "$TOPIC/$DEVICE/muted" "$Muted" "0" > /dev/udp/127.0.0.1/$MQTTUDP
+printf "$JSON_FORMAT" "$TOPIC/$DEVICE/repeat" "$Repeat" "0" > /dev/udp/127.0.0.1/$MQTTUDP
+printf "$JSON_FORMAT" "$TOPIC/$DEVICE/shuffle" "$huffle" "0" > /dev/udp/127.0.0.1/$MQTTUDP
+printf "$JSON_FORMAT" "$TOPIC/$DEVICE/arturl" "$Bild" "0" > /dev/udp/127.0.0.1/$MQTTUDP
+printf "$JSON_FORMAT" "$TOPIC/$DEVICE/state" "$Status" "0" > /dev/udp/127.0.0.1/$MQTTUDP
+printf "$JSON_FORMAT" "$TOPIC/$DEVICE/mediaId" "$Mediaid" "0" > /dev/udp/127.0.0.1/$MQTTUDP
+printf "$JSON_FORMAT" "$TOPIC/$DEVICE/queueId" "$Queueid" "0" > /dev/udp/127.0.0.1/$MQTTUDP
+printf "$JSON_FORMAT" "$TOPIC/$DEVICE/providerName" "$Provider" "0" > /dev/udp/127.0.0.1/$MQTTUDP
+
+
+# echo { "topic"="$TOPIC/$DEVICE/title" $Title > /dev/udp/127.0.0.1/$MQTTUDP
+# echo publish $TOPIC/$DEVICE/album $Album > /dev/udp/127.0.0.1/$MQTTUDP
+# echo $TOPIC/$DEVICE/title $title > /dev/udp/127.0.0.1/$MQTTUDP
+# echo $TOPIC/$DEVICE/title $title > /dev/udp/127.0.0.1/$MQTTUDP
+# echo $TOPIC/$DEVICE/title $title > /dev/udp/127.0.0.1/$MQTTUDP
+# echo $TOPIC/$DEVICE/title $title > /dev/udp/127.0.0.1/$MQTTUDP
+# echo $TOPIC/$DEVICE/title $title > /dev/udp/127.0.0.1/$MQTTUDP
+# echo $TOPIC/$DEVICE/title $title > /dev/udp/127.0.0.1/$MQTTUDP
+# echo $TOPIC/$DEVICE/title $title > /dev/udp/127.0.0.1/$MQTTUDP
+# echo $TOPIC/$DEVICE/title $title > /dev/udp/127.0.0.1/$MQTTUDP
+# echo $TOPIC/$DEVICE/title $title > /dev/udp/127.0.0.1/$MQTTUDP
+# echo $TOPIC/$DEVICE/title $title > /dev/udp/127.0.0.1/$MQTTUDP
 
 
 
-
-
-
-
-
-
+exit
 
 #cat $Ram/$Curl.txt
 
-VAR="$(cat /$Ram/$Curl.txt)"
-echo  $VAR | tr "," "\n" |/bin/sed 's/"//g'|/bin/sed 's/{//g' |/bin/sed 's/}//g' |/bin/sed 's/`//g' |/bin/sed -e's/volume:muted/ /g' |/bin/sed 18,23D > /$Ram/$Curl.txt
+#VAR="$(cat /$Ram/$Curl.txt)"
+#echo  $VAR | tr "," "\n" |/bin/sed 's/"//g'|/bin/sed 's/{//g' |/bin/sed 's/}//g' |/bin/sed 's/`//g' |/bin/sed -e's/volume:muted/ /g' |/bin/sed 18,23D > /$Ram/$Curl.txt
+
+#cat $Ram/$Curl.txt
+
+echo Notifications abfragen
+
+NOTIFICATIONS=$(curl \
+ -s \
+ -b  ${COOKIE} \
+ -A "Mozilla/5.0" --compressed \
+ -H "DNT: 1" \
+ -H "Connection: keep-alive" \
+ -L \
+ -H "Content-Type: application/json; charset=UTF-8" \
+ -H "Referer: https://alexa.amazon.de/spa/index.html" \
+ -H "Origin: https://alexa.amazon.de" \
+ -H "csrf: $(awk '$0 ~/.amazon.de.*csrf[\s\t]/ {print $7}' ${COOKIE})" \
+ "https://alexa.amazon.de/api/notifications?cached=true")
+ 
+
+# echo $NOTIFICATIONS | jq  '.[]' /$Ram/Notifications.txt >  /$Ram/Notifications.conf
 
 
+echo Bluetooth-Status abfragen
+
+BLUETOOTH=$(curl \
+ -s \
+ -b ${COOKIE} \
+ -A "Mozilla/5.0" \
+ --compressed \
+ -H "DNT: 1" \
+ -H "Connection: keep-alive" \
+ -L \
+ -H "Content-Type: application/json; charset=UTF-8" \
+ -H "Referer: https://alexa.amazon.de/spa/index.html" \
+ -H "Origin: https://alexa.amazon.de" \
+ -H "csrf: $(awk '$0 ~/.amazon.de.*csrf[\s\t]/ {print $7}' ${COOKIE})" \
+ "https://alexa.amazon.de/api/bluetooth?cached=true")
+
+# jq  '.[]?' /$Ram/bt.txt >  /$Ram/bt.conf
 
 
-
-curl -s -b  ${COOKIE} -A "Mozilla/5.0" --compressed -H "DNT: 1" -H "Connection: keep-alive" -L\
- -H "Content-Type: application/json; charset=UTF-8" -H "Referer: https://alexa.amazon.de/spa/index.html" -H "Origin: https://alexa.amazon.de"\
- -H "csrf: $(awk '$0 ~/.amazon.de.*csrf[\s\t]/ {print $7}' ${COOKIE})"\
- "https://alexa.amazon.de/api/notifications?cached=true" > /$Ram/Notifications.txt	
-
- jq  '.[]' /$Ram/Notifications.txt >  /$Ram/Notifications.conf
-
-
-
-
-
-
-
-#BT status abfragen
-
-curl -s -b  ${COOKIE} -A "Mozilla/5.0" --compressed -H "DNT: 1" -H "Connection: keep-alive" -L\
- -H "Content-Type: application/json; charset=UTF-8" -H "Referer: https://alexa.amazon.de/spa/index.html" -H "Origin: https://alexa.amazon.de"\
- -H "csrf: $(awk '$0 ~/.amazon.de.*csrf[\s\t]/ {print $7}' ${COOKIE})"\
- "https://alexa.amazon.de/api/bluetooth?cached=true" > /$Ram/bt.txt
-
-
-                jq  '.[]?' /$Ram/bt.txt >  /$Ram/bt.conf
-
-
-cat /$Ram/bt.txt > /dev/udp/$LOXIP/$UDPPORT	
+# cat /$Ram/bt.txt > /dev/udp/$LOXIP/$UDPPORT	
 	
 
-VAR="$(cat /$Ram/bt.txt)"
-echo  $VAR | tr "," "\n" |/bin/sed 's/"//g'|/bin/sed 's/{//g' |/bin/sed 's/}//g' |/bin/sed 's/`//g' |/bin/sed -e's/volume:muted/ /g' |/bin/sed 18,23D > /$Ram/bt.txt
-echo $DEVICE1
-
+# VAR="$(cat /$Ram/bt.txt)"
+# echo  $VAR | tr "," "\n" |/bin/sed 's/"//g'|/bin/sed 's/{//g' |/bin/sed 's/}//g' |/bin/sed 's/`//g' |/bin/sed -e's/volume:muted/ /g' |/bin/sed 18,23D > /$Ram/bt.txt
+# echo $DEVICE1
 
 #Google Kalender abfrage
 
-curl -s -b  ${COOKIE} -A "Mozilla/5.0" --compressed -H "DNT: 1" -H "Connection: keep-alive" -L\
- -H "Content-Type: application/json; charset=UTF-8" -H "Referer: https://alexa.amazon.de/spa/index.html" -H "Origin: https://alexa.amazon.de"\
+set CARDS=$(curl \
+ -s \
+ -b ${COOKIE} \
+ -A "Mozilla/5.0" \
+ --compressed \
+ -H "DNT: 1" \
+ -H "Connection: keep-alive" \
+ -L \
+ -H "Content-Type: application/json; charset=UTF-8" \
+ -H "Referer: https://alexa.amazon.de/spa/index.html" \
+ -H "Origin: https://alexa.amazon.de" \
  -H "csrf: $(awk '$0 ~/.amazon.de.*csrf[\s\t]/ {print $7}' ${COOKIE})"\
- "https://${ALEXA}/api/cards/" > /$Ram/card.txt
+ "https://${ALEXA}/api/cards/")
 
-echo -n Kalender Daten Start > /dev/udp/$LOXIP/$UDPPORT
-jq '.[]' /$Ram/card.txt >  /$Ram/card.conf
-jq -r '.[]? | .eonEventList, .eonLinks' /$Ram/card.conf > /$Ram/card1.conf
-jq -r '.[]? | {title,startTime,endTime}' /$Ram/card1.conf > /$Ram/card2.conf
-awk '{if (a[$0]==0) {a[$0]=1; print}}' /$Ram/card2.conf >/$Ram/card3.conf
+#echo -n Kalender Daten Start > /dev/udp/$LOXIP/$UDPPORT
+#jq '.[]' /$Ram/card.txt >  /$Ram/card.conf
+#jq -r '.[]? | .eonEventList, .eonLinks' /$Ram/card.conf > /$Ram/card1.conf
+#jq -r '.[]? | {title,startTime,endTime}' /$Ram/card1.conf > /$Ram/card2.conf
+#awk '{if (a[$0]==0) {a[$0]=1; print}}' /$Ram/card2.conf >/$Ram/card3.conf
 
-split -d -l 20 /$Ram/card3.conf /$Ram/card.conf 
-cat $Ram/card.conf > /dev/udp/$LOXIP/$UDPPORT
+# split -d -l 20 /$Ram/card3.conf /$Ram/card.conf 
+# cat $Ram/card.conf > /dev/udp/$LOXIP/$UDPPORT
 
-if [ -e $Ram/card.conf01 ]; then
-cat $Ram/card.conf01 > /dev/udp/$LOXIP/$UDPPORT
-fi
+# if [ -e $Ram/card.conf01 ]; then
+# cat $Ram/card.conf01 > /dev/udp/$LOXIP/$UDPPORT
+# fi
 
-if [ -e $Ram/card.conf02 ]; then
-cat $Ram/card.conf02 > /dev/udp/$LOXIP/$UDPPORT
-fi
+# if [ -e $Ram/card.conf02 ]; then
+# cat $Ram/card.conf02 > /dev/udp/$LOXIP/$UDPPORT
+# fi
 
-echo -n Kalender Daten Ende > /dev/udp/$LOXIP/$UDPPORT
+# echo -n Kalender Daten Ende > /dev/udp/$LOXIP/$UDPPORT
 
 
 

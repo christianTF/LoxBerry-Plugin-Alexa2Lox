@@ -39,7 +39,6 @@ function read_amazon_creds()
 			}
 			elseif (strtolower($param) == 'passwort' ) {
 				$password = $value;
-				error_log("Password: $password");
 				continue;
 			}
 			elseif (strtolower($param) == 'token' ) {

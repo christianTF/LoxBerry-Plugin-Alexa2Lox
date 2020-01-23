@@ -71,7 +71,7 @@ $mqttcred = mqtt_connectiondetails();
 
 <div class="ui-grid-a">
 	<div class="ui-block-a">
-		<button id="OpenAlexaWeb" class="ui-btn">Alexa Webinterface öffnen</button>
+		<a href="https://alexa.amazon.de" target="_blank" id="OpenAlexaWeb" class="ui-btn">Alexa Webinterface öffnen</a>
 	</div>
 	<div class="ui-block-b">
 		<button id="UpdateAlexaRemoteControl" class="ui-btn">Alexa Remote Control aktualisieren</button>

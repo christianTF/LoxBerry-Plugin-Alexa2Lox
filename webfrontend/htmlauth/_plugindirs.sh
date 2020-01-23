@@ -18,3 +18,10 @@ GENERALCFG=$LBHOMEDIR/config/system/general.cfg
 # Set TMP for femp directory
 TMP="/tmp"
 
+
+# Read MQTT Gateway UDP port
+MQTTUDP=$(jq -r '.Main.udpinport' $LBHOMEDIR/config/plugins/mqttgateway/mqtt.json)
+echo Used UDP port from MQTT Gateway: $MQTTUDP
+
+# Set MQTT base topic
+TOPIC=alexa2lox
