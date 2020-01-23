@@ -1,0 +1,4 @@
+#!/bin/bash
+. REPLACELBPHTMLAUTHDIR/_plugindirs.sh
+cd $LBPHTMLAUTHDIR
+./start.sh -login
