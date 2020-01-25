@@ -49,28 +49,52 @@ if ( !isset($devicelist) or !isset($devicelist->devices) ) {
 	echo "Could not read device list. Cannot send to MQTT";
 	exit(1);
 }
+$realDeviceNames = array( );
+$allowedDevices = array ("ECHO", "KNIGHT", "ROOK", "WHA");
 
 foreach( $devicelist->devices as $device ) {
+	// Skip devices not online
+	if( $device->online != true ) {
+		continue;
+	}
+	// Skip devices not in allowed list of deviceTypes
+	if( !in_array( $device->deviceFamily, $allowedDevices ) ) {
+		continue;
+	}
+	// Handle device ALL
+	if ( $_GET['device'] == 'ALL' ) {
+		// Put all devices to an array - no name compare required
+		array_push($realDeviceNames, $device->accountName);
+		continue;
+	}
+	// In all other cases, search for the real device name
 	if(strtolower( str_replace( '_', ' ', $device->accountName ) ) == strtolower( str_replace('_', ' ', $_GET['device'] ) ) ) {
-		$realDeviceName = $device->accountName;
+		array_push($realDeviceNames, $device->accountName);
 		break;
 	}
 }
 
-if (!isset( $realDeviceName ) ) {
+if ( !isset( $realDeviceNames ) ) {
 	echo "Could not find device in devicelist. Cannot send to MQTT";
 	exit(1);
 }
 
 // Query MQTT Settings
 $mqttcred = mqtt_connectiondetails();
-$sendTopicText = TOPIC.'/'.$realDeviceName.'/lastTTStext';
-$sendTopicTime = TOPIC.'/'.$realDeviceName.'/lastTTSloxtime';
-$sendValueText = json_encode( array( 'topic' => $sendTopicText, 'value' => $text, 'retain' => 0 ) );
-$sendValueTime = json_encode( array( 'topic' => $sendTopicTime, 'value' => epoch2lox(), 'retain' => 0 ) );
-
 $sock = socket_create(AF_INET, SOCK_DGRAM, SOL_UDP);
-socket_sendto ( $sock , $sendValueText , strlen($sendValueText) , 0 , 'localhost' , $mqttcred['udpinport'] );
-socket_sendto ( $sock , $sendValueTime , strlen($sendValueTime) , 0 , 'localhost' , $mqttcred['udpinport'] );
-socket_close( $sock );
 
+// Loop through all TTS devices
+foreach( $realDeviceNames as $realDeviceName ) {
+	$sendTopicText = TOPIC.'/'.$realDeviceName.'/lastTTStext';
+	$sendValueText = json_encode( array( 'topic' => $sendTopicText, 'value' => utf8_encode($text), 'retain' => 0 ) );
+	socket_sendto ( $sock , $sendValueText , strlen($sendValueText) , 0 , 'localhost' , $mqttcred['udpinport'] );
+	
+	$sendTopicLoxtime = TOPIC.'/'.$realDeviceName.'/lastTTSloxtime';
+	$sendValueLoxtime = json_encode( array( 'topic' => $sendTopicLoxtime, 'value' => epoch2lox(), 'retain' => 0 ) );
+	socket_sendto ( $sock , $sendValueLoxtime , strlen($sendValueLoxtime) , 0 , 'localhost' , $mqttcred['udpinport'] );
+	
+	$sendTopicTime = TOPIC.'/'.$realDeviceName.'/lastTTStime';
+	$sendValueTime = json_encode( array( 'topic' => $sendTopicTime, 'value' => currtime('hr'), 'retain' => 0 ) );
+	socket_sendto ( $sock , $sendValueTime , strlen($sendValueTime) , 0 , 'localhost' , $mqttcred['udpinport'] );
+}
+socket_close( $sock );

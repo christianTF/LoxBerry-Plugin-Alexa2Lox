@@ -341,7 +341,7 @@ function query_shoppinglist
 
 	echo "Einkaufsliste (Listentrennzeichen $listDelimiter)"
 	readarray -t Elements < <( echo "$List" | jq -r '.list[].value' )
-	local JoinedElements=$(implode " * " "${Elements[@]}")
+	local JoinedElements=$(implode " $listDelimiter " "${Elements[@]}")
 	echo "$JoinedElements"
 	
 	JSON_FORMAT='{ "topic":"%s", "value":"%s", "retain":"%s" }'
@@ -383,7 +383,7 @@ function query_todolist
 
 	echo "To-Do Liste (Listentrennzeichen $listDelimiter)"
 	readarray -t Elements < <( echo "$List" | jq -r '.list[].value' )
-	local JoinedElements=$(implode " * " "${Elements[@]}")
+	local JoinedElements=$(implode " $listDelimiter " "${Elements[@]}")
 	echo "$JoinedElements"
 	
 	local sendTopic="$TOPIC/list/todo"
@@ -398,13 +398,15 @@ function query_todolist
 }
 
 
-
+# Fügt ein Bash array zusammen mit dem übergebenen Trennzeichen (1. Param)
+# So wie in PHP implode, bzw. in Perl join
 function implode {
-	# perl -e '$s = shift @ARGV; print join($s, @ARGV);' "$@";
 	local d=$1; shift; echo -n "$1"; shift; printf "%s" "${@/#/$d}";
 }
 
-### HIER STARTET DAS SCRIPT ###
+###############################################################################
+######################## HIER STARTET DAS SCRIPT ##############################
+###############################################################################
 
 . ./_plugindirs.sh
 home="$LBPHTMLAUTHDIR"
@@ -422,12 +424,16 @@ do
 key="$1"
 
 case $key in
-    -z|--all)
-    ACTION="all"
-	DEVICE="$2"
-    shift # past argument
-    shift # past value
+--original)
+	shift # past argument
+    ORIGINALSCRIPTPARAMS=$@
     ;;
+    # -z|--all)
+    # ACTION="all"
+	# DEVICE="$2"
+    # shift # past argument
+    # shift # past value
+    # ;;
     --notifications)
     ACTION="notifications"
     shift # past argument
@@ -448,7 +454,12 @@ case $key in
     shift # past argument
     shift # past value
     ;;
-    --device)
+    --playerstate)
+    ACTION="playerstate"
+    shift # past argument
+    # shift # past value
+    ;;
+	--device)
     DEVICE="$2"
     shift # past argument
     shift # past value
@@ -504,13 +515,18 @@ echo
 
 # Programmverzweigung
 
-if [ -z "$ACTION" ]; then
+if [ ! -z "ORIGINALSCRIPTPARAMS" ]; then
 
 	echo "Lötzimmer Original-Script verwenden..."
-	sh ./alexa_remote_control.sh $FULLCOMMAND
-	exit 1
+	echo "Aufrufparameter: $ORIGINALSCRIPTPARAMS"
+	sh ./alexa_remote_control.sh $ORIGINALSCRIPTPARAMS
+	exit 0
 
-elif [ "${ACTION,,}" == "playerstatus" ] || [ "${ACTION,,}" = "playerstate" ]; then
+fi
+
+echo "Alexa4Lox Routinen werden verwendet..."
+
+if [ "${ACTION,,}" == "playerstatus" ] || [ "${ACTION,,}" = "playerstate" ]; then
 
 	echo Playerstatus
 	query_device

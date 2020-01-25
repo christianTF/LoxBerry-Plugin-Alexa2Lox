@@ -133,12 +133,17 @@ usage()
 	echo "   -a : list available devices"
 	echo "   -m : delete multiroom and/or create new multiroom containing devices"
 	echo "   -lastalexa : print serial number that received the last voice command"
+	echo "   -login : Logs in, without further command"
 	echo "   -l : logoff"
 	echo "   -h : help"
 }
 
 while [ "$#" -gt 0 ] ; do
 	case "$1" in
+		--version)
+			echo "v0.15b"
+			exit 0
+			;;
 		-d)
 			if [ "${2#-}" != "${2}" -o -z "$2" ] ; then
 				echo "ERROR: missing argument for ${1}"
@@ -245,6 +250,9 @@ while [ "$#" -gt 0 ] ; do
 			fi
 			DEVICE=$2
 			shift
+			;;
+		-login)
+			LOGIN="true"
 			;;
 		-l)
 			LOGOFF="true"
@@ -914,6 +922,11 @@ if [ ! -f ${DEVTXT} -o ! -f ${DEVALL} ] ; then
 		echo "failed to download device list, aborting"
 		exit 1
 	fi
+fi
+
+if [ -n "$LOGIN" ] ; then
+	echo "logged in"
+	exit 0
 fi
 
 if [ -n "$COMMAND" -o -n "$QUEUE" -o -n "$NOTIFICATIONS" ] ; then
