@@ -110,7 +110,6 @@ function query_playerstate {
 # if [ "$Repeat" = "SELECTED" ]
 # then
 # Repeat1=1
-
 # fi
 
 # if [ "$Shuffle" = "ENABLED" ]
@@ -121,44 +120,7 @@ function query_playerstate {
 # if [ "$Shuffle" = "SELECTED" ]
 # then
   # Shuffle1=1
-
 # fi
-# if [ "$Status" = "PLAYING" ]
-# then
-  # Status1=1
-
-# fi
-# if [ "$Status" = "PAUSED" ]
-# then
-  # Status1=2
-
-# fi
-# if [ "$Status" = "IDLE" ]
-# then
-  # Status1=0
-
-# fi
-# if [ "$Titel" = "null" ]
-# then
-  # Titel=keine Daten
-
-# fi
-
-# if [ "$Interpret1" = "null" ]
-# then
-  # Interpret1=-
-# fi
-# if [ "$Album1" = "null" ]
-# then
-  # Album1=-
-# fi
-
-# if [ "$Titel11" = "null" ]
-# then
-  # Titel1=-
-# fi
-
-
 
 }
 
@@ -178,8 +140,9 @@ function query_notifications {
 	 -H "csrf: $(awk '$0 ~/.amazon.de.*csrf[\s\t]/ {print $7}' ${COOKIE})" \
 	 "https://alexa.amazon.de/api/notifications?cached=true")
 	 
+	echo $NOTIFICATIONS
 
-	# echo $NOTIFICATIONS | jq  '.[]' /$Ram/Notifications.txt >  /$Ram/Notifications.conf
+	echo $NOTIFICATIONS | jq  '.[]'
 
 		
 	 # menge=$( tr -s " " "\n" < /$Ram/Notifications.conf | grep -c alarmTime )
@@ -250,6 +213,8 @@ function query_bluetooth {
 	 -H "csrf: $(awk '$0 ~/.amazon.de.*csrf[\s\t]/ {print $7}' ${COOKIE})" \
 	 "https://alexa.amazon.de/api/bluetooth?cached=true")
 
+	echo $BLUETOOTH
+
 	# jq  '.[]?' /$Ram/bt.txt >  /$Ram/bt.conf
 
 
@@ -265,7 +230,7 @@ function query_bluetooth {
 function query_calendar {
 
 
-	#Google Kalender abfrage
+	echo Kalender abfragen
 
 	set CARDS=$(curl \
 	 -s \
@@ -279,7 +244,12 @@ function query_calendar {
 	 -H "Referer: https://alexa.amazon.de/spa/index.html" \
 	 -H "Origin: https://alexa.amazon.de" \
 	 -H "csrf: $(awk '$0 ~/.amazon.de.*csrf[\s\t]/ {print $7}' ${COOKIE})"\
-	 "https://${ALEXA}/api/cards/")
+	 "https://alexa.amazon.de/api/cards/")
+
+
+
+	echo $CARDS
+
 
 	#echo -n Kalender Daten Start > /dev/udp/$LOXIP/$UDPPORT
 	#jq '.[]' /$Ram/card.txt >  /$Ram/card.conf
@@ -302,34 +272,136 @@ function query_calendar {
 
 }
 
-function query_shoppinglist {
+# Listen abfragen
+function query_namedLists {
+
+	LISTAGE=604800
+	if [ -f "$NAMEDLISTFILE" ]; then
+		LISTAGE=$(($(date +%s) - $(date +%s -r "$NAMEDLISTFILE")))
+	fi
+	
+	echo Alter des Caches der verfügbaren Listen: $LISTAGE Sekunden
+	
+	if [ "$LISTAGE" -gt "86400" ]; then
+		# Cached list is too old or does not exist - request 
+		echo Rufe verfügbare Listen von Amazon ab
+		NAMEDLISTS=$(curl \
+		 -s \
+		 -b ${COOKIE} \
+		 -A "Mozilla/5.0" \
+		 --compressed \
+		 -H "DNT: 1" \
+		 -H "Connection: keep-alive" \
+		 -L \
+		 -H "Content-Type: application/json; charset=UTF-8" \
+		 -H "Referer: https://alexa.amazon.de/spa/index.html" \
+		 -H "Origin: https://alexa.amazon.de" \
+		 -H "csrf: $(awk '$0 ~/.amazon.de.*csrf[\s\t]/ {print $7}' ${COOKIE})" \
+		 "https://alexa.amazon.de/api/namedLists/")
+		
+		echo "$NAMEDLISTS" > "$NAMEDLISTFILE"
+	else
+		echo Lese verfügbare Listen aus dem lokalen Cache
+		NAMEDLISTS=$(<$NAMEDLISTFILE)
+	fi
+	 
+	# echo $NAMEDLISTS
+
+}
+
+function query_shoppinglist
+{
+
+	if [ -z "$NAMEDLISTS" ]; then
+		echo Variable für verfügbare Listen ist leer! Abbruch.
+		exit
+	fi
+	
+	echo "Suche Einkaufsliste"
+	
+	local ListId=$(echo $NAMEDLISTS | jq -r '.lists[] | select(.type =="SHOPPING_LIST" and .defaultList==true) | .itemId')
+
+	echo Frage Liste ab - ShoppingListId $ListId
+	
+	local List=$(curl \
+	 -s \
+	 -b ${COOKIE} \
+	 -A "Mozilla/5.0" \
+	 --compressed \
+	 -H "DNT: 1" \
+	 -H "Connection: keep-alive" \
+	 -L \
+	 -H "Content-Type: application/json; charset=UTF-8" \
+	 -H "Referer: https://alexa.amazon.de/spa/index.html" \
+	 -H "Origin: https://alexa.amazon.de" \
+	 -H "csrf: $(awk '$0 ~/.amazon.de.*csrf[\s\t]/ {print $7}' ${COOKIE})" \
+	"https://alexa.amazon.de/api/namedLists/$ListId/items?startTime=&endTime=&completed=false&listIds=$ListId")
+
+	#echo "$List" | jq .
+
+	echo "Einkaufsliste (Listentrennzeichen $listDelimiter)"
+	readarray -t Elements < <( echo "$List" | jq -r '.list[].value' )
+	local JoinedElements=$(implode " * " "${Elements[@]}")
+	echo "$JoinedElements"
+	
+	JSON_FORMAT='{ "topic":"%s", "value":"%s", "retain":"%s" }'
+	echo Sende an MQTT Gateway...
+	printf "$JSON_FORMAT" "$TOPIC/list/shopping" "$JoinedElements" "0" > /dev/udp/127.0.0.1/$MQTTUDP
+
+}
 
 
-	echo EK Liste abfragen
+function query_todolist
+{
 
-	curl -s -b  ${COOKIE} -A "Mozilla/5.0" --compressed -H "DNT: 1" -H "Connection: keep-alive" -L\
-	 -H "Content-Type: application/json; charset=UTF-8" -H "Referer: https://alexa.amazon.de/spa/index.html" -H "Origin: https://alexa.amazon.de"\
-	 -H "csrf: $(awk '$0 ~/.amazon.de.*csrf[\s\t]/ {print $7}' ${COOKIE})"\
-	 "https://alexa.amazon.de/api/namedLists/" > $Ram/listid.txt
-	jq '.[]' /$Ram/listid.txt >  /$Ram/listid.json
-	cat /run/shm/alex2lox/listid.json | jq '.[].itemId' | /bin/sed 's/"//g'>/$Ram/ListIds.txt
-	read ShoppingListId  < /run/shm/alex2lox/ListIds.txt
-	echo ShoppingListId  $ShoppingListId 
+	if [ -z "$NAMEDLISTS" ]; then
+		echo Variable für verfügbare Listen ist leer! Abbruch.
+		exit
+	fi
+	
+	echo "Suche To-Do Liste"
+	
+	local ListId=$(echo $NAMEDLISTS | jq -r '.lists[] | select(.type =="TO_DO" and .defaultList==true) | .itemId')
+
+	echo Frage Liste ab - ListId $ListId
+	
+	local List=$(curl \
+	 -s \
+	 -b ${COOKIE} \
+	 -A "Mozilla/5.0" \
+	 --compressed \
+	 -H "DNT: 1" \
+	 -H "Connection: keep-alive" \
+	 -L \
+	 -H "Content-Type: application/json; charset=UTF-8" \
+	 -H "Referer: https://alexa.amazon.de/spa/index.html" \
+	 -H "Origin: https://alexa.amazon.de" \
+	 -H "csrf: $(awk '$0 ~/.amazon.de.*csrf[\s\t]/ {print $7}' ${COOKIE})" \
+	"https://alexa.amazon.de/api/namedLists/$ListId/items?startTime=&endTime=&completed=false&listIds=$ListId")
+
+	#echo "$List" | jq .
+
+	echo "To-Do Liste (Listentrennzeichen $listDelimiter)"
+	readarray -t Elements < <( echo "$List" | jq -r '.list[].value' )
+	local JoinedElements=$(implode " * " "${Elements[@]}")
+	echo "$JoinedElements"
+	
+	local sendTopic="$TOPIC/list/todo"
+	JSON_FORMAT='{ "topic":"%s", "value":"%s", "retain":"%s" }'
+	echo Sende an MQTT Gateway...
+	# printf "$JSON_FORMAT" "$TOPIC/list/todo" "$JoinedElements" "0" 
+	# printf "$JSON_FORMAT" "$TOPIC/list/todo" "$JoinedElements" "0" > /dev/udp/127.0.0.1/$MQTTUDP
+
+	jq -r -n --arg topic "$sendTopic" --arg value "$JoinedElements" '{ topic:($topic), value:($value)}' > /dev/udp/127.0.0.1/$MQTTUDP
 
 
-	curl -s -b  ${COOKIE} -A "Mozilla/5.0" --compressed -H "DNT: 1" -H "Connection: keep-alive" -L\
-	 -H "Content-Type: application/json; charset=UTF-8" -H "Referer: https://alexa.amazon.de/spa/index.html" -H "Origin: https://alexa.amazon.de"\
-	 -H "csrf: $(awk '$0 ~/.amazon.de.*csrf[\s\t]/ {print $7}' ${COOKIE})"\
-	 "https://alexa.amazon.de/api/namedLists/$ShoppingListId/items?startTime=&endTime=&completed=&listIds=$ShoppingListId" > /$Ram/ekliste.conf
+}
 
-	jq '.[]' /$Ram/ekliste.conf >  /$Ram/ekliste.json
 
-	echo EINKAUFS-LISTE  >/$Ram/EkListe
-	echo --------------  >>/$Ram/EkListe
-	echo   >>/$Ram/EkListe
 
-	cat /run/shm/alex2lox/ekliste.json | jq '.[].value'| /bin/sed 's/"//g'  >>/$Ram/EkListe
-
+function implode {
+	# perl -e '$s = shift @ARGV; print join($s, @ARGV);' "$@";
+	local d=$1; shift; echo -n "$1"; shift; printf "%s" "${@/#/$d}";
 }
 
 ### HIER STARTET DAS SCRIPT ###
@@ -337,6 +409,7 @@ function query_shoppinglist {
 . ./_plugindirs.sh
 home="$LBPHTMLAUTHDIR"
 DEVLIST=/$TMP/.alexa.devicelist.json
+NAMEDLISTFILE=/$TMP/.alexa.namedlists.json
 COOKIE="/$TMP/.alexa.cookie"
 
 FULLCOMMAND=$@
@@ -355,7 +428,22 @@ case $key in
     shift # past argument
     shift # past value
     ;;
-    --action)
+    --notifications)
+    ACTION="notifications"
+    shift # past argument
+    # shift # past value
+    ;;
+	--shoppinglist)
+    ACTION="shoppinglist"
+    shift # past argument
+    # shift # past value
+    ;;
+	--todolist)
+    ACTION="todolist"
+    shift # past argument
+    # shift # past value
+    ;;
+	--action)
     ACTION="$2"
     shift # past argument
     shift # past value
@@ -399,12 +487,15 @@ if [ "${ALEXA2LOXENV}" != "php" ]; then
 		MFA_SECRET=$( grep 'TOKEN=' $LBPHTMLAUTHDIR/amazon.txt |/bin/sed 's/TOKEN=//g'  )
 		echo MFA_SECRET $MFA_SECRET
 	fi
+	listDelimiter=$( grep 'listDelimiter=' $LBPHTMLAUTHDIR/amazon.txt |/bin/sed 's/listDelimiter=//g'  )
+	
 	export EMAIL=$EMAIL
 	export PASSWORD=$PASSWORD
 	export MFA_SECRET="$MFA_SECRET"
 	export LANGUAGE=de,en-US;q=0.7,en;q=0.3
 else
 	echo Von PHP aufgerufen - Umgebungsvariablen sollten gesetzt sein
+	listDelimiter=${ALEXA2LOX_listDelimiter}
 fi  
 
 echo EMAIL: ${EMAIL}
@@ -429,7 +520,15 @@ elif [ "${ACTION,,}" == "playerstatus" ] || [ "${ACTION,,}" = "playerstate" ]; t
 elif [ "${ACTION,,}" == "einkaufsliste" ] || [ "${ACTION,,}" = "shoppinglist" ]; then
 
 	echo Einkaufsliste
+	query_namedLists
 	query_shoppinglist
+	exit
+
+elif [ "${ACTION,,}" == "todoliste" ] || [ "${ACTION,,}" = "todolist" ]; then
+
+	echo To-Do Liste
+	query_namedLists
+	query_todolist
 	exit
 
 elif [ "${ACTION,,}" = "drucken" ] || [ "${ACTION,,}" = "print" ]; then

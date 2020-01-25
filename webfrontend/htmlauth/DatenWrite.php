@@ -22,6 +22,13 @@ $handle = fopen ( "$_home/amazon.txt", "w" );
 		fwrite ( $handle, 'false' );
 	}
 	fwrite ( $handle, "\n" );
+	fwrite ( $handle, 'listDelimiter=' );
+	if( !isset($_POST['listDelimiter']) ) {
+		$_POST['listDelimiter'] = '|';
+	}
+	fwrite ( $handle, $_POST['listDelimiter'] );
+	fwrite ( $handle, "\n" );
+	
 	
 fclose ( $handle );
 

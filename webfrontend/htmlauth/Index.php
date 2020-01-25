@@ -124,7 +124,12 @@ Bei Zwei-Schritt-Verifizierung (<a class="openhelp" href="#">Hilfe</a>) musst du
 			
 		</div>
 	</div>
-	
+
+	<div class="ui-field-contain">
+		<label for="listDelimiter">Listen-Trennzeichen:</label>
+		<input id="listDelimiter" type="text" name="listDelimiter" value="<?=$listDelimiter?>">
+	</div>
+		
 	
 	
 	

@@ -14,14 +14,14 @@ $email = null;
 $password = null;
 $token = null;
 $use_oath = null;
-
+$listDelimiter = null; 
 read_amazon_creds();
 
 
 function read_amazon_creds() 
 {
 
-	global $email, $password, $token, $use_oath;
+	global $email, $password, $token, $use_oath, $listDelimiter;
 	 
 	// Set alexa_remote_control environments
 
@@ -52,6 +52,11 @@ function read_amazon_creds()
 				error_log("use_oath: $use_oath");
 				continue;
 			}
+			elseif (strtolower($param) == 'listdelimiter' ) {
+				$listDelimiter = $value;
+				error_log("listDelimiter: $listDelimiter");
+				continue;
+			}
 		}
 
 		putenv("ALEXA2LOXENV=php");
@@ -65,6 +70,7 @@ function read_amazon_creds()
 		} else {
 			putenv('MFA_SECRET=');
 		}
+		putenv("ALEXA2LOX_listDelimiter=$listDelimiter");
 		
 	}
 }
