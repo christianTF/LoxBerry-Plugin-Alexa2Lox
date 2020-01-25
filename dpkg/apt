@@ -1,5 +1,4 @@
 curl
 sed
-awk
 jq
 oathtool
