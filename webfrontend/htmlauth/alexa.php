@@ -15,9 +15,9 @@ $params = $_GET;
 foreach( $params as $param => $value ) {
 	echo "$param";
 	$commandline .= "--$param ";
-	if(isset($value)) {
+	if(!empty($value)) {
 		echo " --> $value";
-		$commandline .= "$value ";
+		$commandline .= "\"$value\" ";
 	}
 	echo "\n";
 }
