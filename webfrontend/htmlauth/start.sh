@@ -515,7 +515,7 @@ echo
 
 # Programmverzweigung
 
-if [ ! -z "ORIGINALSCRIPTPARAMS" ]; then
+if [ ! -z "$ORIGINALSCRIPTPARAMS" ]; then
 
 	echo "Lötzimmer Original-Script verwenden..."
 	echo "Aufrufparameter: $ORIGINALSCRIPTPARAMS"
