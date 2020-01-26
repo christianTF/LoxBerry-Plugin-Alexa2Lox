@@ -124,6 +124,16 @@ function query_playerstate {
 
 }
 
+
+function alexa_execute {
+
+	# Führt -e gegen das Originalscript aus, und ruft dann den Playerstate ab
+	./alexa_remote_control.sh -d "$DEVICE" -e "$PARAM_EXECUTE"
+	query_playerstate
+
+}
+
+
 function query_notifications {
 	echo Notifications abfragen...
 
@@ -404,6 +414,7 @@ function query_todolist
 
 
 }
+
 
 
 # Fügt ein Bash array zusammen mit dem übergebenen Trennzeichen (1. Param)

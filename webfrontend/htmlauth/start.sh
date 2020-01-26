@@ -24,7 +24,7 @@ do
 key="$1"
 
 case $key in
---original)
+--original | --o)
 	shift # past argument
     ORIGINALSCRIPTPARAMS=$@
     ;;
@@ -34,22 +34,22 @@ case $key in
     # shift # past argument
     # shift # past value
     # ;;
-    --notifications)
+    --notifications | --nl)
     PARAM_NOTIFICATIONS=true
     shift # past argument
     # shift # past value
     ;;
-	--shoppinglist)
+	--shoppinglist | --sl)
     PARAM_SHOPPINGLIST=true
     shift # past argument
     # shift # past value
     ;;
-	--todolist)
+	--todolist | --tl)
     PARAM_TODOLIST=true
     shift # past argument
     # shift # past value
     ;;
-	--calendar)
+	--calendar | --cl)
     PARAM_CALENDAR=true
     shift # past argument
     # shift # past value
@@ -59,18 +59,18 @@ case $key in
     shift # past argument
     # shift # past value
     ;;
-	--action)
-    ACTION="$2"
-    shift # past argument
-    shift # past value
-    ;;
-    --playerstate)
+    --playerstate | --ps)
     PARAM_PLAYERSTATE=true
     shift # past argument
     # shift # past value
     ;;
-	--device)
+	--device | --d)
     DEVICE="$2"
+    shift # past argument
+    shift # past value
+    ;;
+	--execute | --e)
+    PARAM_EXECUTE="$2"
     shift # past argument
     shift # past value
     ;;
@@ -126,6 +126,15 @@ if [ ! -z "$ORIGINALSCRIPTPARAMS" ]; then
 fi
 
 echo "Alexa2Lox Routinen werden verwendet..."
+
+if [ -n "$PARAM_EXECUTE" ] ; then
+	
+	PARAM_SET=true
+	echo Execute
+	query_device
+	alexa_execute
+	
+fi
 
 if [ "$PARAM_PLAYERSTATE" = true ] ; then
 	
