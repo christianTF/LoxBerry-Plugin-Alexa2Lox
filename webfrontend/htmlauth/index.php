@@ -22,7 +22,7 @@ if( empty($alexa_remote_version) ) {
 }
 
 // Refresh devices and read found devices from json
-$output = `$lbphtmlauthdir/start.sh --original -a`;
+$output = `$lbphtmlauthdir/alexa_remote_control.sh -a`;
 error_log("alexa_remote_control.sh -a OUTPUT:");
 error_log($output);
 $devicefile = TMP.'/.alexa.devicelist.json';
