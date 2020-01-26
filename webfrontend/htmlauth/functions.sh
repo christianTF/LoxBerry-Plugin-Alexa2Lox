@@ -300,6 +300,9 @@ function query_namedLists {
 	
 	echo Alter des Caches der verfügbaren Listen: $LISTAGE Sekunden
 	
+	# DEBUG (Liste immer abrufen)
+	LISTAGE=604800
+	
 	if [ "$LISTAGE" -gt "86400" ]; then
 		# Cached list is too old or does not exist - request 
 		echo Rufe verfügbare Listen von Amazon ab
@@ -315,9 +318,22 @@ function query_namedLists {
 		 -H "Referer: https://alexa.amazon.de/spa/index.html" \
 		 -H "Origin: https://alexa.amazon.de" \
 		 -H "csrf: $(awk '$0 ~/.amazon.de.*csrf[\s\t]/ {print $7}' ${COOKIE})" \
-		 "https://alexa.amazon.de/api/namedLists/")
+		 "https://alexa.amazon.de/api/namedListss/")
 		
-		echo "$NAMEDLISTS" > "$NAMEDLISTFILE"
+		# Test if this was a valid response
+		echo "$NAMEDLISTS" | jq -c -r -M -e .lists > /dev/null
+		local error=$?
+		echo "query_namedLists: Result parsing json result: $error"
+		if [ "$error" = 1 ] ; then
+			echo "query_namedLists: No lists found";
+			return 1
+		elif [ "$error" -ge 4 ] ; then
+			echo "query_namedLists: Querying result failed - possibly authentication error"
+			return 1
+		else 
+			# Nur wenn jq ein Ergebnis liefert, speichern wir dieses in ein Cachefile
+			echo "$NAMEDLISTS" > "$NAMEDLISTFILE"
+		fi
 	else
 		echo Lese verfügbare Listen aus dem lokalen Cache
 		NAMEDLISTS=$(<$NAMEDLISTFILE)

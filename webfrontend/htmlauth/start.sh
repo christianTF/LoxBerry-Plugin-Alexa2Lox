@@ -34,47 +34,47 @@ case $key in
     # shift # past argument
     # shift # past value
     # ;;
-    --notifications | --nl)
+--notifications | --nl)
     PARAM_NOTIFICATIONS=true
     shift # past argument
     # shift # past value
     ;;
-	--shoppinglist | --sl)
+--shoppinglist | --sl)
     PARAM_SHOPPINGLIST=true
     shift # past argument
     # shift # past value
     ;;
-	--todolist | --tl)
+--todolist | --tl)
     PARAM_TODOLIST=true
     shift # past argument
     # shift # past value
     ;;
-	--calendar | --cl)
+--calendar | --cl)
     PARAM_CALENDAR=true
     shift # past argument
     # shift # past value
     ;;
-	--print)
+--print)
     PARAM_PRINT=true
     shift # past argument
     # shift # past value
     ;;
-    --playerstate | --ps)
+--playerstate | --ps)
     PARAM_PLAYERSTATE=true
     shift # past argument
     # shift # past value
     ;;
-	--device | --d)
+--device | --d)
     DEVICE="$2"
     shift # past argument
     shift # past value
     ;;
-	--execute | --e)
+--execute | --e)
     PARAM_EXECUTE="$2"
     shift # past argument
     shift # past value
     ;;
-    *)    # unknown option
+*)    # unknown option
     POSITIONAL+=("$1") # save it in an array for later
     shift # past argument
     ;;
