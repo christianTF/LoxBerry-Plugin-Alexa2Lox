@@ -22,9 +22,9 @@ LBPBINDIR=$LBPSBIN/$PDIR
 mkdir -p /tmp/$PTEMPDIR\_upgrade/config
 
 echo "<INFO> Backing up existing config files"
-if [ -f $LBPHTMLAUTH/$PDIR/amazon.txt ] ; then
+if [ -f $LBHOMEDIR/webfrontend/htmlauth/plugins/$PDIR/amazon.txt ] ; then
 	echo "<INFO> Backing up old amazon.txt config file" 
-	cp -v --no-target-directory $LBPHTMLAUTH/$PDIR/amazon.txt /tmp/$PTEMPDIR\_upgrade/config/amazon.cfg
+	cp -v --no-target-directory $LBHOMEDIR/webfrontend/htmlauth/plugins/$PDIR/amazon.txt /tmp/$PTEMPDIR\_upgrade/config/amazon.cfg
 fi
 cp -v -r $LBPCONFIGDIR/* /tmp/$PTEMPDIR\_upgrade/config/
 
