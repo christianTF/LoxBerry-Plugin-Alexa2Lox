@@ -42,7 +42,7 @@ ARGV5=$5 # Fifth argument is Base folder of LoxBerry
 echo "<INFO> Base folder is: $ARGV5"
 
 echo "<INFO> Copy back existing config files"
-cp -v -r -u /tmp/uploads/$ARGV1\_upgrade/config/$ARGV3/* $ARGV5/config/plugins/$ARGV3/ 
+cp -v -r -u /tmp/uploads/$ARGV1\_upgrade/config/* $ARGV5/config/plugins/$ARGV3/
 
 echo "<INFO> Remove temporary folders"
 rm -r /tmp/uploads/$ARGV1\_upgrade
