@@ -19,6 +19,6 @@ LBPCONFIGDIR=$LBPCONFIG/$PDIR
 LBPBINDIR=$LBPSBIN/$PDIR
 
 echo "<INFO> Copy back existing config files"
-cp -f -r /tmp/$PTEMPDIR\_upgrade/config/$PDIR/* $LBPCONFIGDIR/ 
+cp -f -r /tmp/$PTEMPDIR\_upgrade/config/* $LBPCONFIGDIR/ 
 
 exit 0
