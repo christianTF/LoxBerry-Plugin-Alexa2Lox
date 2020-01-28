@@ -25,6 +25,6 @@ echo "<INFO> Backing up existing config files"
 if [ -e "$LBPHTMLAUTHDIR/amazon.txt" ] ; then
 	cp -v $LBPHTMLAUTHDIR/amazon.txt /tmp/$PTEMPDIR\_upgrade/config/amazon.cfg
 fi
-cp -v -r $LBPCONFIGDIR/ /tmp/$PTEMPDIR\_upgrade/config
+cp -v -r $LBPCONFIGDIR/* /tmp/$PTEMPDIR\_upgrade/config/
 
 exit 0
