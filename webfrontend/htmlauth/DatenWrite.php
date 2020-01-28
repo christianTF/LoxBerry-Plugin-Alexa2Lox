@@ -1,11 +1,8 @@
 <?php
 require_once "loxberry_system.php";
 require_once "lib/alexa_env.php";
-
-$_home=LBPHTMLAUTHDIR;
-$_data=LBPDATADIR;
        
-$handle = fopen ( "$_home/amazon.txt", "w" );
+$handle = fopen ( LBPCONFIGDIR."/amazon.cfg", "w" );
     fwrite ( $handle, 'EMAIL=' );
     fwrite ( $handle, $_POST['EMAIL'] );  
     fwrite ( $handle, "\n" );
@@ -35,7 +32,7 @@ fclose ( $handle );
 // Delete cookie
 unlink('/tmp/.alexa.cookie');
 
-// Re-read amazon.txt credentials
+// Re-read amazon.cfg credentials
 read_amazon_creds(); 
 
 // Refresh devices

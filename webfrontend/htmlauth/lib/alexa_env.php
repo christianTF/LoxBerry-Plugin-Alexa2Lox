@@ -25,9 +25,9 @@ function read_amazon_creds()
 	 
 	// Set alexa_remote_control environments
 
-	$creds = file(LBPHTMLAUTHDIR."/amazon.txt", FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+	$creds = file(LBPCONFIGDIR."/amazon.cfg", FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
 	if( !isset($creds) ) {
-		echo "Configfile amazon.txt not found or empty";
+		echo "Configfile amazon.cfg not found or empty";
 	} else {
 
 		// Parse file

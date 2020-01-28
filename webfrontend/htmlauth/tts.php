@@ -10,7 +10,7 @@ $mqttcred = null;
 
 if( !isset($email) or !isset($password) ) {
 	http_response_code(500);
-	echo "Configfile amazon.txt not found, empty or invalid";
+	echo "Configfile amazon.cfg not found, empty or invalid";
 	exit(1);
 }
 

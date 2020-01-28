@@ -51,18 +51,9 @@ mkdir -p /tmp/uploads/$ARGV1\_upgrade/html
 mkdir -p /tmp/uploads/$ARGV1\_upgrade/log
 
 echo "<INFO> Backing up existing config files"
+if [ -e "$ARGV5/webfrontend/htmlauth/plugins/$ARGV3/amazon.txt" ] ; then
+	cp -v $ARGV5/webfrontend/htmlauth/plugins/$ARGV3/amazon.txt /tmp/uploads/$ARGV1\_upgrade/config/amazon.cfg
+fi
 cp -v -r $ARGV5/config/plugins/$ARGV3/ /tmp/uploads/$ARGV1\_upgrade/config
-
-echo "<INFO> Backing up existing cgi files"
-cp -v -r $ARGV5/webfrontend/cgi/plugins/$ARGV3/ /tmp/uploads/$ARGV1\_upgrade/cgi
-
-echo "<INFO> Backing up existing html files"
-cp -v -r $ARGV5/webfrontend/html/plugins/$ARGV3/ /tmp/uploads/$ARGV1\_upgrade/html
-
-echo "<INFO> Backing up existing log files"
-cp -v -r $ARGV5/log/plugins/$ARGV3/ /tmp/uploads/$ARGV1\_upgrade/log
-
-
-
 
 exit 0

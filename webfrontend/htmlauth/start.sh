@@ -92,14 +92,14 @@ echo Full command: $FULLCOMMAND
 echo "Prüfe auf Environment Variablen"
 if [ "${ALEXA2LOXENV}" != "php" ]; then
 	echo Lese Umgebungsvariablen vom Configfile
-	EMAIL=$( grep 'EMAIL=' $LBPHTMLAUTHDIR/amazon.txt |/bin/sed 's/EMAIL=//g'  )
-	PASSWORD=$( grep 'Passwort=' $LBPHTMLAUTHDIR/amazon.txt |/bin/sed 's/Passwort=//g'  )
-	USE_OATH=$( grep 'use_oath=' $LBPHTMLAUTHDIR/amazon.txt |/bin/sed 's/use_oath=//g'  )
+	EMAIL=$( grep 'EMAIL=' $LBPCONFIGDIR/amazon.cfg |/bin/sed 's/EMAIL=//g'  )
+	PASSWORD=$( grep 'Passwort=' $LBPCONFIGDIR/amazon.cfg |/bin/sed 's/Passwort=//g'  )
+	USE_OATH=$( grep 'use_oath=' $LBPCONFIGDIR/amazon.cfg |/bin/sed 's/use_oath=//g'  )
 	if [ "$USE_OATH" = "true" ]; then
-		MFA_SECRET=$( grep 'TOKEN=' $LBPHTMLAUTHDIR/amazon.txt |/bin/sed 's/TOKEN=//g'  )
+		MFA_SECRET=$( grep 'TOKEN=' $LBPCONFIGDIR/amazon.cfg |/bin/sed 's/TOKEN=//g'  )
 		echo MFA_SECRET $MFA_SECRET
 	fi
-	listDelimiter=$( grep 'listDelimiter=' $LBPHTMLAUTHDIR/amazon.txt |/bin/sed 's/listDelimiter=//g'  )
+	listDelimiter=$( grep 'listDelimiter=' $LBPCONFIGDIR/amazon.cfg |/bin/sed 's/listDelimiter=//g'  )
 	
 	export EMAIL=$EMAIL
 	export PASSWORD=$PASSWORD

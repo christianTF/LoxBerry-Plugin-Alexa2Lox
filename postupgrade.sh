@@ -41,26 +41,11 @@ echo "<INFO> Installation folder is: $ARGV4"
 ARGV5=$5 # Fifth argument is Base folder of LoxBerry
 echo "<INFO> Base folder is: $ARGV5"
 
-
-
-
 echo "<INFO> Copy back existing config files"
 cp -v -r -u /tmp/uploads/$ARGV1\_upgrade/config/$ARGV3/* $ARGV5/config/plugins/$ARGV3/ 
 
-echo "<INFO> Copy back existing log files"
-cp -v -r -u /tmp/uploads/$ARGV1\_upgrade/log/$ARGV3/* $ARGV5/log/plugins/$ARGV3/ 
-
-echo "<INFO> Copy back existing html files"
-cp -v -r -u /tmp/uploads/$ARGV1\_upgrade/html/$ARGV3/* $ARGV5/webfrontend/html/plugins/$ARGV3/
-
-
-echo "<INFO> Copy back existing cgi files"
-cp -v -r -u /tmp/uploads/$ARGV1\_upgrade/cgi/$ARGV3/* $ARGV5/webfrontend/cgi/plugins/$ARGV3/
-
 echo "<INFO> Remove temporary folders"
 rm -r /tmp/uploads/$ARGV1\_upgrade
-
-
 
 # Exit with Status 0
 exit 0
