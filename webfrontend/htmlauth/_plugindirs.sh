@@ -1,17 +1,17 @@
 #!/usr/bin/bash
 
 # This script sets variables for the plugin directories and should be sourced by all other scripts
-# Variables are equivalent to PHP's constants (
+# Variables are equivalent to PHP's constants
 
-LBHOMEDIR=/opt/loxberry
-LBPPLUGINDIR=alexa2lox
-LBPHTMLAUTHDIR=/opt/loxberry/webfrontend/htmlauth/plugins/alexa2lox
-LBPHTMLDIR=/opt/loxberry/webfrontend/html/plugins/alexa2lox
-LBPTEMPLATEDIR=/opt/loxberry/templates/plugins/alexa2lox
-LBPDATADIR=/opt/loxberry/data/plugins/alexa2lox
-LBPLOGDIR=/opt/loxberry/log/plugins/alexa2lox
-LBPCONFIGDIR=/opt/loxberry/config/plugins/alexa2lox
-LBPBINDIR=/opt/loxberry/bin/plugins/alexa2lox
+LBHOMEDIR=REPLACELBHOMEDIR
+LBPPLUGINDIR=REPLACELBPPLUGINDIR
+LBPHTMLAUTHDIR=REPLACELBPHTMLAUTHDIR
+LBPHTMLDIR=REPLACELBPHTMLDIR
+LBPTEMPLATEDIR=REPLACELBPTEMPLATEDIR
+LBPDATADIR=REPLACELBPDATADIR
+LBPLOGDIR=REPLACELBPLOGDIR
+LBPCONFIGDIR=REPLACELBPCONFIGDIR
+LBPBINDIR=REPLACELBPBINDIR
 
 GENERALCFG=$LBHOMEDIR/config/system/general.cfg
 
