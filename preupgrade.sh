@@ -19,6 +19,8 @@ LBPCONFIGDIR=$LBPCONFIG/$PDIR
 LBPBINDIR=$LBPSBIN/$PDIR
 
 
+mkdir -p /tmp/$PTEMPDIR\_upgrade/config
+
 echo "<INFO> Backing up existing config files"
 if [ -e "$LBPHTMLAUTHDIR/amazon.txt" ] ; then
 	cp -v $LBPHTMLAUTHDIR/amazon.txt /tmp/$PTEMPDIR\_upgrade/config/amazon.cfg
