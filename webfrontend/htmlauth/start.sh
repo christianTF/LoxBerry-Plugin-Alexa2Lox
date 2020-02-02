@@ -132,8 +132,11 @@ if [ -n "$PARAM_EXECUTE" ] ; then
 	PARAM_SET=true
 	echo Execute
 	query_device
-	alexa_execute
-	
+	if [ $? -eq 0 ] ; then
+		alexa_execute
+	else 
+		echo "Could not check device - skipping"
+	fi
 fi
 
 if [ "$PARAM_PLAYERSTATE" = true ] ; then
@@ -141,8 +144,11 @@ if [ "$PARAM_PLAYERSTATE" = true ] ; then
 	PARAM_SET=true
 	echo Playerstatus
 	query_device
-	query_playerstate
-	
+	if [ $? -eq 0 ] ; then
+		query_playerstate
+	else 
+		echo "Could not check device - skipping"
+	fi
 fi
 
 if [ "$PARAM_SHOPPINGLIST" = true ] ; then

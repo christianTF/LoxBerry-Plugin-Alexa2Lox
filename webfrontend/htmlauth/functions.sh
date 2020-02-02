@@ -8,7 +8,16 @@
 # Devicetyp und Seriennummer aus Gerätename auslesen
 function query_device {
 
-	DEVICES=$(jq -r '.devices[].accountName' /$TMP/.alexa.devicelist.json)
+	if [ ! -f "$TMP/.alexa.devicelist.json" ] ; then
+		update_devicelist
+	fi
+	
+	if [ ! -f "$TMP/.alexa.devicelist.json" ] ; then
+		echo "Tried to fetch devicelist, but still not existing - cannot get device"
+		return 1
+	fi
+	
+	DEVICES=$(jq -r '.devices[].accountName' $TMP/.alexa.devicelist.json)
 	
 	DEVICE=$(echo ${DEVICE,,} | sed -r 's/%20/ /g')
 
@@ -28,10 +37,19 @@ function query_device {
 	MEDIAOWNERCUSTOMERID=$(jq --arg device "${DEVICE}" -r '.devices[] | select(.accountName == $device) | .deviceOwnerCustomerId' ${DEVLIST})
 
 	if [ -z "${DEVICESERIALNUMBER}" ] ; then
-		echo "ERROR: unkown device dev:${DEVICE}"
+		echo "ERROR: unknown device dev:${DEVICE}"
 		return 1
 	fi
 
+}
+
+function update_devicelist {
+	echo "Update devicelist - deleting current devicelist"
+	if [ -e "$TMP/.alexa.devicelist.json" ] ; then
+		rm "$TMP/.alexa.devicelist.json"
+	fi
+	echo "Querying devicelist"
+	./alexa_remote_control.sh -a
 }
 
 ## Status eines Players abfragen
@@ -40,7 +58,7 @@ function query_playerstate {
 	# Playerstatus abfragen
 	# Response-JSON in Variable PLAYER speichern
 
-	echo Player abfragen...
+	echo Player $DEVICE abfragen...
 
 	PLAYER=$(curl \
 	-s \
