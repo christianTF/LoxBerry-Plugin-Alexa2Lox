@@ -166,9 +166,17 @@ function query_notifications {
 	 
 	echo $NOTIFICATIONS
 
-	echo $NOTIFICATIONS | jq  '.[]'
+# 	echo $NOTIFICATIONS | jq  '.[]'
 
-		
+	echo --------------------------------------------------------
+	
+	echo "$NOTIFICATIONS" | jq  '.notifications[] | {timerLabel,reminderLabel,deviceSerialNumber,notificationIndex,status,recurringPattern,type,originalTime,remainingTime}'
+
+
+
+
+
+	
 	 # menge=$( tr -s " " "\n" < /$Ram/Notifications.conf | grep -c alarmTime )
 	# echo "es sind $menge Timmereintraege vorhanden"
 
