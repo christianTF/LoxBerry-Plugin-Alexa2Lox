@@ -44,11 +44,7 @@ function query_device {
 }
 
 function update_devicelist {
-	echo "Update devicelist - deleting current devicelist"
-	if [ -e "$TMP/.alexa.devicelist.json" ] ; then
-		rm "$TMP/.alexa.devicelist.json"
-	fi
-	echo "Querying devicelist"
+	echo "Updating devicelist"
 	./alexa_remote_control.sh -a
 }
 
