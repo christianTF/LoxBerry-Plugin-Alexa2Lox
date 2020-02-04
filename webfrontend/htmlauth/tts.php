@@ -55,7 +55,9 @@ if ( isset($_GET['vol']) ) {
 // Device processing
 //
 
-if( isset($_GET['devices']) ) {
+if( isset($_GET['device']) ) {
+	$devices = $_GET['device'];
+} elseif( isset($_GET['devices']) ) {
 	$devices = $_GET['devices'];
 } elseif( isset($_GET['d']) ) {
 	$devices = $_GET['d'];
