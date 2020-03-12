@@ -12,7 +12,7 @@ echo("B&B Technik OG\n");
 
 $params = $_GET;
 
-if( isset($_GET['original']) ) {
+if( isset($_GET['original']) || isset($_GET['o']) ) {
 	$use_original=true;
 	$commandline = "--original ";
 } else {
@@ -20,7 +20,7 @@ if( isset($_GET['original']) ) {
 }
 
 foreach( $params as $param => $value ) {
-	if($param == "original") {
+	if($param == "original" || $param == "o") {
 		continue;
 	}
 	echo "$param";
