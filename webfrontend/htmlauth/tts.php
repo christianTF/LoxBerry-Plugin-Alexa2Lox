@@ -97,7 +97,7 @@ if ( !isset($devicelist) or !isset($devicelist->devices) ) {
 }
 
 $realDeviceNames = array( );
-$allowedDevices = array ("ECHO", "KNIGHT", "ROOK");
+$allowedDevices = array ("ECHO", "KNIGHT", "ROOK", "WHA");
 
 $deviceparamCount = count($devices);
 echo "Number of device params: $deviceparamCount\n";
