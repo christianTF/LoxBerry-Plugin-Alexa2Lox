@@ -120,7 +120,7 @@ if [ ! -z "$ORIGINALSCRIPTPARAMS" ]; then
 
 	echo "Lötzimmer Original-Script verwenden..."
 	echo "Aufrufparameter: $ORIGINALSCRIPTPARAMS"
-	sh ./alexa_remote_control.sh $ORIGINALSCRIPTPARAMS
+	sh ./alexa_remote_control.sh "$@"
 	exit 0
 
 fi
