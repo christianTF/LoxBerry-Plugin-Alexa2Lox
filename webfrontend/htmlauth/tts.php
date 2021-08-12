@@ -161,7 +161,7 @@ function alexaTTS ( $devicename, $text ) {
 	$command = array ( 
 		LBPHTMLAUTHDIR."/alexa_remote_control.sh",
 		'-d "' . $devicename . '"',
-		'-e speak:"' . $text . '"',
+		'-e speak:"' . addslashes($text) . '"',
 		'>/dev/null &'
 	);
 
