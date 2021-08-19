@@ -3,7 +3,12 @@
 # Amazon Alexa Remote Control (PLAIN shell)
 #  alex(at)loetzimmer.de
 #
-# 2020-01-08: v0.15b (for updates see http://blog.loetzimmer.de/2017/10/amazon-alexa-hort-auf-die-shell-echo.html)
+# 2021-01-28: v0.17c (for updates see http://blog.loetzimmer.de/2017/10/amazon-alexa-hort-auf-die-shell-echo.html)
+#
+# !!! THIS IS THE FINAL VERSION !!!
+#
+#  Due to JQ being widely available across platforms there is no need to expose oneself to the hacks
+#  required when parsing JSON with BASH.
 #
 ###
 #
@@ -51,13 +56,13 @@ SET_OATHTOOL='/usr/bin/oathtool'
 # tmp path
 SET_TMP="/tmp"
 
-# Volume for speak commands
-SET_SPEAKVOL="30"
+# Volume for speak commands (a SPEAKVOL of 0 leaves the volume settings untouched)
+SET_SPEAKVOL="0"
 # if no current playing volume can be determined, fall back to normal volume
 SET_NORMALVOL="10"
 
 # Device specific volumes (overriding the above)
-SET_DEVICEVOLNAME="EchoDot2ndGen  Echo1stGen"
+SET_DEVICEVOLNAME="EchoDot2ndGen Echo1stGen"
 SET_DEVICEVOLSPEAK="100 30"
 SET_DEVICEVOLNORMAL="100 20"
 
@@ -120,7 +125,9 @@ usage()
 	echo "          -a | -m <multiroom_device> [device_1 .. device_X] | -lastalexa | -l | -h"
 	echo
 	echo "   -e : run command, additional SEQUENCECMDs:"
-	echo "        weather,traffic,flashbriefing,goodmorning,singasong,tellstory,speak:'<text>'"
+	echo "        weather,traffic,flashbriefing,goodmorning,singasong,tellstory,"
+	echo "        speak:'<text>',sound:<soundeffect_name>,"
+	echo "        textcommand:'<anything you would otherwise say to Alexa>'"
 	echo "   -b : connect/disconnect/list bluetooth device"
 	echo "   -q : query queue"
 	echo "   -n : query notifications"
@@ -141,7 +148,7 @@ usage()
 while [ "$#" -gt 0 ] ; do
 	case "$1" in
 		--version)
-			echo "v0.15b"
+			echo "v0.17a"
 			exit 0
 			;;
 		-d)
@@ -320,10 +327,20 @@ case "$COMMAND" in
 				exit 1
 			fi
 			;;
+	textcommand:*)
+			SEQUENCECMD='Alexa.TextCommand\",\"skillId\":\"amzn1.ask.1p.tellalexa'
+			SEQUENCEVAL=$(echo ${COMMAND##textcommand:} | sed -r s/\"/\'/g)
+			SEQUENCEVAL=',\"text\":\"'${SEQUENCEVAL}'\"'
+			;;
 	speak:*)
-			SEQUENCECMD='Alexa.Speak'
 			TTS=$(echo ${COMMAND##*:} | sed -r 's/["\\]/ /g')
-			TTS=",\\\"textToSpeak\\\":\\\"${TTS}\\\""
+			TTS=',\"textToSpeak\":\"'${TTS}'\"'
+			SEQUENCECMD='Alexa.Speak'
+			SEQUENCEVAL=$TTS
+			;;
+	sound:*)
+			SEQUENCECMD='Alexa.Sound'
+			SEQUENCEVAL=',\"soundStringId\":\"'${COMMAND##sound:}'\"'
 			;;
 	weather)
 			SEQUENCECMD='Alexa.Weather.Play'
@@ -619,12 +636,14 @@ set_var()
 run_cmd()
 {
 if [ -n "${SEQUENCECMD}" ] ; then
-	# the speak command is treated differently in that the wolume gets set to $SPEAKVOL
-	if [ -n "${TTS}" ] ; then 
+	if echo $COMMAND | grep -q -E "weather|traffic|flashbriefing|goodmorning|singasong|tellstory|speak|sound|textcommand" ; then
 		if [ "${DEVICEFAMILY}" = "WHA" ] ; then
 			echo "Skipping unsupported command: ${COMMAND} on dev:${DEVICE} type:${DEVICETYPE} serial:${DEVICESERIALNUMBER} family:${DEVICEFAMILY}"
 			return
 		fi
+	fi
+	# the speak command is treated differently if $SPEAKVOL > 0
+		if [ -n "${TTS}" -a $SPEAKVOL -gt 0 ] || [ "${COMMAND%%:*}" = 'sound' -a $SPEAKVOL -gt 0 ] ; then
 		SVOL=$SPEAKVOL
 
 		# Not using arrays here in order to be compatible with non-Bash
@@ -672,7 +691,7 @@ if [ -n "${SEQUENCECMD}" ] ; then
 			fi
 		fi
 
-		ALEXACMD='{"behaviorId":"PREVIEW","sequenceJson":"{\"@type\":\"com.amazon.alexa.behaviors.model.Sequence\",\"startNode\":{\"@type\":\"com.amazon.alexa.behaviors.model.SerialNode\",\"nodesToExecute\":[{\"@type\":\"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\",\"type\":\"Alexa.DeviceControls.Volume\",\"operationPayload\":{\"deviceType\":\"'${DEVICETYPE}'\",\"deviceSerialNumber\":\"'${DEVICESERIALNUMBER}'\",\"customerId\":\"'${MEDIAOWNERCUSTOMERID}'\",\"locale\":\"'${TTS_LOCALE}'\",\"value\":\"'${SVOL}'\"}},{\"@type\":\"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\",\"type\":\"'${SEQUENCECMD}'\",\"operationPayload\":{\"deviceType\":\"'${DEVICETYPE}'\",\"deviceSerialNumber\":\"'${DEVICESERIALNUMBER}'\",\"customerId\":\"'${MEDIAOWNERCUSTOMERID}'\",\"locale\":\"'${TTS_LOCALE}'\"'${TTS}'}},{\"@type\":\"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\",\"type\":\"Alexa.DeviceControls.Volume\",\"operationPayload\":{\"deviceType\":\"'${DEVICETYPE}'\",\"deviceSerialNumber\":\"'${DEVICESERIALNUMBER}'\",\"customerId\":\"'${MEDIAOWNERCUSTOMERID}'\",\"locale\":\"'${TTS_LOCALE}'\",\"value\":\"'${VOL}'\"}}]}}","status":"ENABLED"}'
+		ALEXACMD='{"behaviorId":"PREVIEW","sequenceJson":"{\"@type\":\"com.amazon.alexa.behaviors.model.Sequence\",\"startNode\":{\"@type\":\"com.amazon.alexa.behaviors.model.SerialNode\",\"nodesToExecute\":[{\"@type\":\"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\",\"type\":\"Alexa.DeviceControls.Volume\",\"operationPayload\":{\"deviceType\":\"'${DEVICETYPE}'\",\"deviceSerialNumber\":\"'${DEVICESERIALNUMBER}'\",\"customerId\":\"'${MEDIAOWNERCUSTOMERID}'\",\"locale\":\"'${TTS_LOCALE}'\",\"value\":\"'${SVOL}'\"}},{\"@type\":\"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\",\"type\":\"'${SEQUENCECMD}'\",\"operationPayload\":{\"deviceType\":\"'${DEVICETYPE}'\",\"deviceSerialNumber\":\"'${DEVICESERIALNUMBER}'\",\"customerId\":\"'${MEDIAOWNERCUSTOMERID}'\",\"locale\":\"'${TTS_LOCALE}'\"'${SEQUENCEVAL}'}},{\"@type\":\"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\",\"type\":\"Alexa.DeviceControls.Volume\",\"operationPayload\":{\"deviceType\":\"'${DEVICETYPE}'\",\"deviceSerialNumber\":\"'${DEVICESERIALNUMBER}'\",\"customerId\":\"'${MEDIAOWNERCUSTOMERID}'\",\"locale\":\"'${TTS_LOCALE}'\",\"value\":\"'${VOL}'\"}}]}}","status":"ENABLED"}'
 	else
 		ALEXACMD='{"behaviorId":"PREVIEW","sequenceJson":"{\"@type\":\"com.amazon.alexa.behaviors.model.Sequence\",\"startNode\":{\"@type\":\"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\",\"type\":\"'${SEQUENCECMD}'\",\"operationPayload\":{\"deviceType\":\"'${DEVICETYPE}'\",\"deviceSerialNumber\":\"'${DEVICESERIALNUMBER}'\",\"customerId\":\"'${MEDIAOWNERCUSTOMERID}'\",\"locale\":\"'${TTS_LOCALE}'\"'${SEQUENCEVAL}'}}}","status":"ENABLED"}'
 	fi
@@ -873,7 +892,7 @@ ${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep
 #
 last_alexa()
 {
-${CURL} ${OPTS} -s -b ${COOKIE} -A "Mozilla/5.0" -H "DNT: 1" -H "Connection: keep-alive" -L\
+${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep-alive" -L\
  -H "Content-Type: application/json; charset=UTF-8" -H "Referer: https://alexa.${AMAZON}/spa/index.html" -H "Origin: https://alexa.${AMAZON}"\
  -H "csrf: $(awk "\$0 ~/.${AMAZON}.*csrf[ \\s\\t]+/ {print \$7}" ${COOKIE})" -X GET \
  "https://${ALEXA}/api/activities?startTime=&size=1&offset=1" | sed -r 's/^.*serialNumber":"([^"]+)".*$/\1/'
