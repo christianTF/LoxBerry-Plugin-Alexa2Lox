@@ -7,7 +7,7 @@ require_once "lib/alexa_env.php";
 
 // Print LoxBerry header
 $template_title = "ALEXA <--> LOX " . LBSystem::pluginversion();
-$helplink = "https://www.loxwiki.eu/x/FAHqAw";
+$helplink = "https://wiki.loxberry.de/plugins/alexa2lox/";
 $helptemplate = "help.html";
 LBWeb::lbheader($template_title, $helplink, $helptemplate);
 
