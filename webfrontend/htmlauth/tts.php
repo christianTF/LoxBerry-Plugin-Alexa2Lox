@@ -1,7 +1,7 @@
 <?php
 require_once "loxberry_system.php";
+require_once "loxberry_io.php";
 require_once "lib/alexa_env.php";
-require_once "lib/mqtt.php";
 
 header('Content-Type: text/plain');
 

@@ -2,10 +2,8 @@
 error_log("index.php --------------------------------------------------------------");
 require_once "loxberry_system.php";
 require_once "loxberry_web.php";
+require_once "loxberry_io.php";
 require_once "lib/alexa_env.php";
-
-// Local MQTT lib to provide LB1.x compatibility
-require_once "lib/mqtt.php";
 
 // Print LoxBerry header
 $template_title = "ALEXA <--> LOX " . LBSystem::pluginversion();
