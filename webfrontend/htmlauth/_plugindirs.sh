@@ -20,7 +20,7 @@ TMP="/tmp"
 
 
 # Read MQTT Gateway UDP port
-MQTTUDP=$(jq -r '.Main.udpinport' $LBHOMEDIR/config/plugins/mqttgateway/mqtt.json)
+MQTTUDP=$(jq -r '.Mqtt.Udpinport' $LBHOMEDIR/config/system/general.json)
 echo Used UDP port from MQTT Gateway: $MQTTUDP
 
 # Set MQTT base topic
