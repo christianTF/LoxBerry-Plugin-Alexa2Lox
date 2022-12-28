@@ -63,6 +63,13 @@ if( isset($_GET['device']) ) {
 	$devices = $_GET['d'];
 }
 
+// Quit if text is "0" (Status block workaround)
+if( $text == "0" ) {
+	echo "Input text was \"0\". THIS REQUEST WILL BE IGNORED.\n";
+	echo "(combining text with a Loxone Status block may send an obsolete \"0\" after a tts output)\n";
+	exit(0);
+}
+
 if($devices == 'ALL') {
 	$devices = array ( "ALL" );
 } else {
