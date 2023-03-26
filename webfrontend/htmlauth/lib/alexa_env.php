@@ -61,15 +61,8 @@ function read_amazon_creds()
 
 		putenv("ALEXA2LOXENV=php");
 		putenv("TMP=/tmp");
-		putenv("EMAIL=$email");
-		putenv("PASSWORD=$password");
 		putenv("LANGUAGE='de,en-US;q=0.7,en;q=0.3'");
-		if( $use_oath ) {
-			putenv('OATHTOOL=/usr/bin/oathtool');
-			putenv('MFA_SECRET=' . $token . '');
-		} else {
-			putenv('MFA_SECRET=');
-		}
+		putenv('REFRESH_TOKEN=' . $token . '');
 		putenv("ALEXA2LOX_listDelimiter=$listDelimiter");
 		
 	}

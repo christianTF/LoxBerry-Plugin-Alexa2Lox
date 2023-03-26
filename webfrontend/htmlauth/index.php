@@ -77,48 +77,39 @@ $mqttcred = mqtt_connectiondetails();
 <br>
 
 <div class="wide">Amazon Zugangsdaten</div>
-<p>Zur Abfrage und Steuerung von Alexa gibt es zwei Authentifizierungsmethoden: Entweder Amazon Username+Passwort, oder Zwei-Schritt-Verifizierung. 
-Bei Benutzer+Passwort besteht die Gefahr, dass Amazon regelmäßig sogenannte Captcha's anfordert, wodurch keine Automatisierung mehr möglich ist. 
-Bei Zwei-Schritt-Verifizierung (<a class="openhelp" href="#">Hilfe</a>) musst du einen Token über die Webseite von Amazon erstellen. Dieser wird dann für die Authentifizierung verwendet und funktioniert (nach aktueller Erkenntnis) ohne weitere, manuelle Eingriffe.
+<p>Zur Abfrage und Steuerung von Alexa wird ein Token benötigt. Dieses kannst du mit dem <a href="https://github.com/adn77/alexa-cookie-cli" target="_blank"><span class="mono">alexa-cookie-cli</span></a> von Alexander erstellen.
+Der Token wird dann für die Authentifizierung verwendet und funktioniert (nach aktueller Erkenntnis) ohne weitere, manuelle Eingriffe.
 </p>
 <form id="credentials_form" action="DatenWrite.php" method="post">
-	<div class="ui-grid-a">
-		<div class="ui-block-a">
-			<label for="cred_oath">Zwei-Schritt-Verifizierung</label>
-			<input type="radio" name="cred_selection" id="cred_oath" class="custom" value="true">
-		</div>
-		<div class="ui-block-b">
-			<label for="cred_userpass">Benutzer+Passwort</label>
-			<input type="radio" name="cred_selection" id="cred_userpass" class="custom" value="false">
-		</div>
-	</div>
-
-	<!-- User/Pass credentials -->
-	<div id="credblock_userpass">
-		<div class="ui-field-contain">
-			<label for="amazon_email">Amazon E-Mail-Adresse:</label>
-			<input id="amazon_email" type="text" name="EMAIL" value="<?=$email?>">
-		</div>
-		<div class="ui-field-contain">
-			<label for="amazon_pass">Amazon Passwort:</label>
-			<input id="amazon_pass" type="password" name="Passwort" value="<?=$password?>">
-		</div>
-	</div>
-
+	
 	<!-- OAuth credentials -->
 	<div id="credblock_oath">
 		<div class="ui-field-contain">
-			<label for="amazon_token">Amazon Token:</label>
+
+<?php
+
+if (!isset($devicelist)) {
+
+?>
+
+			<label for="amazon_token">Amazon Refresh Token:</label>
 			<input id="amazon_token" type="text" name="Token" value="<?=$token?>">
-		</div>
-	</div>
-	
-	<div id="credblock_requestkey">
-		<div class="ui-field-contain">
-			<label for="oathtoolkey">Nachdem du den Amazon Token oben eingetragen hast, klicke hier, um den nun bei Amazon abgefragten Schlüssel zu erhalten.</label>
-			<button id="oathtoolkey" class="ui-btn">Zwei-Schritt-Schlüssel anzeigen</button>
-			&nbsp;
-			<p id="oathresponse" style="text-align:center;">&nbsp;</p>
+			<!-- <textarea id="amazon_token" name="Token"><?=$token?></textarea> -->
+
+<?php
+
+} else {
+
+?>
+
+			<label for="amazon_token">Amazon Refresh Token:</label><div style="color:green;margin:.5em 2% 0 0"><b>Du bist angemeldet.</b></div>
+			<input id="amazon_token" type="hidden" name="Token" value="<?=$token?>">
+
+<?php
+
+}
+
+?>	
 			
 		</div>
 	</div>
@@ -128,11 +119,9 @@ Bei Zwei-Schritt-Verifizierung (<a class="openhelp" href="#">Hilfe</a>) musst du
 		<input id="listDelimiter" type="text" name="listDelimiter" value="<?=$listDelimiter?>">
 	</div>
 		
-	
-	
-	
+
 	<!-- Submit button -->
-    <input type="submit" data-icon="check" value="Speichern">
+	<input type="submit" data-icon="check" value="Speichern">
 
 </form>
 
