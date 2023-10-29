@@ -95,17 +95,13 @@ if [ "${ALEXA2LOXENV}" != "php" ]; then
 	EMAIL=$( grep 'EMAIL=' $LBPCONFIGDIR/amazon.cfg |/bin/sed 's/EMAIL=//g'  )
 	PASSWORD=$( grep 'Passwort=' $LBPCONFIGDIR/amazon.cfg |/bin/sed 's/Passwort=//g'  )
 	USE_OATH=$( grep 'use_oath=' $LBPCONFIGDIR/amazon.cfg |/bin/sed 's/use_oath=//g'  )
-	USE_REFRESH_TOKEN=$( grep 'use_refresh_token=' $LBPCONFIGDIR/amazon.cfg |/bin/sed 's/use_refresh_token=//g'  )
 	if [ "$USE_OATH" = "true" ]; then
 		MFA_SECRET=$( grep 'TOKEN=' $LBPCONFIGDIR/amazon.cfg |/bin/sed 's/^TOKEN=//g'  )
 		echo MFA_SECRET $MFA_SECRET
 	fi
-	if [ "$USE_REFRESH_TOKEN" = "true" ]; then
-		REFRESH_TOKEN=$( grep 'REFRESH_TOKEN=' $LBPCONFIGDIR/amazon.cfg |/bin/sed 's/^REFRESH_TOKEN=//g'  )
-		echo REFRESH_TOKEN $REFRESH_TOKEN
-	fi
+	REFRESH_TOKEN=$( grep 'REFRESH_TOKEN=' $LBPCONFIGDIR/amazon.cfg |/bin/sed 's/^REFRESH_TOKEN=//g'  )
+	echo REFRESH_TOKEN $REFRESH_TOKEN
 	listDelimiter=$( grep 'listDelimiter=' $LBPCONFIGDIR/amazon.cfg |/bin/sed 's/listDelimiter=//g'  )
-	
 	export EMAIL=$EMAIL
 	export PASSWORD=$PASSWORD
 	export MFA_SECRET="$MFA_SECRET"
