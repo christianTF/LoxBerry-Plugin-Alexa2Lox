@@ -73,7 +73,7 @@ $mqttcred = mqtt_connectiondetails();
 <div class="wide">Amazon Token</div>
 <p>Die in früheren Pluginversionen verwendeten Authentifizierungsmöglichkeiten (Benutzer+Passwort und 2-Faktor-Authentifizierung) funktionieren nicht mehr. Um das Plugin nutzen
 zu können, musst Du einen Token generieren und hier hinterlegen. Mit diesem Token kann sich das Plugin gegenüber Amazon identifizieren und auf die Alexa-API zugreifen.<br><br>
-Eine Anleitung zur Erzeugung des Token <a href="https://wiki.loxberry.de/plugins/alexa2lox/alexa2lox_refresh_token_erzeugen">findest Du in unserem Wiki</a>.<br>
+Eine Anleitung zur Erzeugung des Token <a href="https://wiki.loxberry.de/plugins/alexa2lox/alexa2lox_refresh_token_erzeugen" target="_blank">findest Du in unserem Wiki</a>.<br>
 </p>
 <form id="credentials_form" action="DatenWrite.php" method="post">
 
@@ -100,6 +100,8 @@ Eine Anleitung zur Erzeugung des Token <a href="https://wiki.loxberry.de/plugins
 
 <!-- Found devices -->
 <div class="wide">Gefundene Geräte</div>
+
+<p><a href="/admin/system/tools/logfile.cgi?logfile=system_tmpfs/apache2/php.log&header=html&format=template" target="_blank">Logfile für die Fehlersuche</a></p>
 
 <?php
 
