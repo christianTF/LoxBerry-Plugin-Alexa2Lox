@@ -33,7 +33,6 @@ if( file_exists( $devicefile ) ) {
 // Query MQTT Settings
 $mqttcred = mqtt_connectiondetails();
 
-
 ?>
 <style>
 .mono {
@@ -58,71 +57,34 @@ $mqttcred = mqtt_connectiondetails();
 
 </style>
 
-
-
 <div class="wide">Amazon Alexa</div>
 <p>
-	Du kannst hier die Amazon Alexa Webseite öffnen, und Alexanders <a href="https://blog.loetzimmer.de/2017/10/amazon-alexa-hort-auf-die-shell-echo.html" target="_blank">"Lötzimmer" Alexa-Script</a> aktualisieren.<br>
-	Aktuelle Version von <span class="mono">alexa_remote_control.sh</span>: <b><span id="arc_version"><?=$alexa_remote_version?></span></b>
+	Du kannst hier Alexanders <a href="https://blog.loetzimmer.de/2021/09/alexa-remote-control-shell-script.html" target="_blank">"Lötzimmer" Alexa-Script</a> aktualisieren. Auf diesem Skript basiert das Plugin.<br>
+	Aktuell installierte Version von <span class="mono">alexa_remote_control.sh</span>: <b><span id="arc_version"><?=$alexa_remote_version?></span></b>
 </p>
 
 <div class="ui-grid-a">
 	<div class="ui-block-a">
-		<a href="https://alexa.amazon.de" target="_blank" id="OpenAlexaWeb" class="ui-btn">Alexa Webinterface öffnen</a>
-	</div>
-	<div class="ui-block-b">
-		<button id="UpdateAlexaRemoteControl" class="ui-btn">Alexa Remote Control aktualisieren</button>
+		<button id="UpdateAlexaRemoteControl" class="ui-btn">Alexa Remote Control ("Lötzimmer"-Skript) aktualisieren</button>
 	</div>
 </div>
 <br>
 
-<div class="wide">Amazon Zugangsdaten</div>
-<p>Zur Abfrage und Steuerung von Alexa gibt es zwei Authentifizierungsmethoden: Entweder Amazon Username+Passwort, oder Zwei-Schritt-Verifizierung. 
-Bei Benutzer+Passwort besteht die Gefahr, dass Amazon regelmäßig sogenannte Captcha's anfordert, wodurch keine Automatisierung mehr möglich ist. 
-Bei Zwei-Schritt-Verifizierung (<a class="openhelp" href="#">Hilfe</a>) musst du einen Token über die Webseite von Amazon erstellen. Dieser wird dann für die Authentifizierung verwendet und funktioniert (nach aktueller Erkenntnis) ohne weitere, manuelle Eingriffe.
+<div class="wide">Amazon Token</div>
+<p>Die in früheren Pluginversionen verwendeten Authentifizierungsmöglichkeiten (Benutzer+Passwort und 2-Faktor-Authentifizierung) funktionieren nicht mehr. Um das Plugin nutzen
+zu können, musst Du einen Token generieren und hier hinterlegen. Mit diesem Token kann sich das Plugin gegenüber Amazon identifizieren und auf die Alexa-API zugreifen.<br><br>
+Eine Anleitung zur Erzeugung des Token <a href="https://wiki.loxberry.de/plugins/alexa2lox/alexa2lox_refresh_token_erzeugen">findest Du in unserem Wiki</a>.<br>
 </p>
 <form id="credentials_form" action="DatenWrite.php" method="post">
-	<div class="ui-grid-a">
-		<div class="ui-block-a">
-			<label for="cred_oath">Zwei-Schritt-Verifizierung</label>
-			<input type="radio" name="cred_selection" id="cred_oath" class="custom" value="true">
-		</div>
-		<div class="ui-block-b">
-			<label for="cred_userpass">Benutzer+Passwort</label>
-			<input type="radio" name="cred_selection" id="cred_userpass" class="custom" value="false">
-		</div>
-	</div>
-
-	<!-- User/Pass credentials -->
-	<div id="credblock_userpass">
-		<div class="ui-field-contain">
-			<label for="amazon_email">Amazon E-Mail-Adresse:</label>
-			<input id="amazon_email" type="text" name="EMAIL" value="<?=$email?>">
-		</div>
-		<div class="ui-field-contain">
-			<label for="amazon_pass">Amazon Passwort:</label>
-			<input id="amazon_pass" type="password" name="Passwort" value="<?=$password?>">
-		</div>
-	</div>
 
 	<!-- OAuth credentials -->
-	<div id="credblock_oath">
+	<div id="credblock">
 		<div class="ui-field-contain">
-			<label for="amazon_token">Amazon Token:</label>
-			<input id="amazon_token" type="text" name="Token" value="<?=$token?>">
+			<label for="Refresh_Token">Amazon Refresh Token:</label>
+			<textarea id="Refresh_Token" name="Refresh_Token" rows="2"><?=$refresh_token?></textarea>
 		</div>
 	</div>
 	
-	<div id="credblock_requestkey">
-		<div class="ui-field-contain">
-			<label for="oathtoolkey">Nachdem du den Amazon Token oben eingetragen hast, klicke hier, um den nun bei Amazon abgefragten Schlüssel zu erhalten.</label>
-			<button id="oathtoolkey" class="ui-btn">Zwei-Schritt-Schlüssel anzeigen</button>
-			&nbsp;
-			<p id="oathresponse" style="text-align:center;">&nbsp;</p>
-			
-		</div>
-	</div>
-
 	<div class="ui-field-contain">
 		<label for="listDelimiter">Listen-Trennzeichen:</label>
 		<input id="listDelimiter" type="text" name="listDelimiter" value="<?=$listDelimiter?>">
@@ -199,11 +161,6 @@ Bei Zwei-Schritt-Verifizierung (<a class="openhelp" href="#">Hilfe</a>) musst du
 <!-- JavaScript code -->
 <script>
 $(function() {
-	// Radio button Auth setzen
-	$("#cred_oath").attr("checked", <?=$use_oath?>);
-	$("#cred_userpass").attr("checked", <?=!$use_oath?>);
-	$("input[type='radio']").checkboxradio("refresh");
-
 
 	// alexa_remote_control aktualisieren Knopf
 	$("#UpdateAlexaRemoteControl").click( function() {
@@ -223,48 +180,14 @@ $(function() {
 			});
 	});
 
-	// oathtool Schlüssel abrufen und anzeigen
-	$("#oathtoolkey").click( function () {
-		$("#oathtoolkey").attr('disabled', 'disabled');
-		$("#oathresponse").html('Schlüssel wird abgefragt...');
-		$("#oathresponse").removeClass("red").addClass("grey");
-		
-		$.post( 'oathrequest.php', $("#credentials_form").serialize() )
-			.done(function( oathResp ) {
-				console.log("oathrequest.php response", oathResp );
-				$("#oathresponse").removeClass("grey");
-				$("#oathresponse").html('Einmal-Schlüssel bei Amazon eingeben: <span class="green" style="font-size:130%">'+oathResp.key+'</span><br><b>Speichern nicht vergessen!');
-				
-			})
-			.fail(function( oathResp ) {
-				console.log("oathrequest.php failed", oathResp);
-				$("#oathresponse").html("Abfrage ist fehlgeschlagen");
-				if( typeof oathResp.responseJSON.errormsg != 'undefined' ) {
-					$("#oathresponse").append(": "+oathResp.responseJSON.errormsg);
-				}
-				$("#oathresponse").removeClass("grey").addClass("red");
-			})
-			.always(function() {
-				$("#oathtoolkey").attr('disabled', null);
-		});
-	});	
-	
-	
-	// Hilfe öffnen und schließen bei Klick
-	$(".openhelp").click( function() {
-		$("#infopanel").panel("toggle");
-	});
-
 });
 
 
 </script>
 
 <?php
-	
-	// Print LoxBerry footer 
 
+// Print LoxBerry footer 
+LBWeb::lbfooter();
 
-	LBWeb::lbfooter();
-	
 ?>

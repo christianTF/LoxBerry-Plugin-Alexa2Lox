@@ -1,5 +1,5 @@
 #!/bin/bash
 . REPLACELBPHTMLAUTHDIR/_plugindirs.sh
 cd $LBPHTMLAUTHDIR
- ./start.sh --original -a
+./start.sh --original -a
  

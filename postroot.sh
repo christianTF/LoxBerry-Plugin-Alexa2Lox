@@ -59,9 +59,8 @@ echo "<INFO> Plugin CONFIG folder is: $PCONFIG"
 echo "<INFO> Plugin SBIN folder is: $PSBIN"
 echo "<INFO> Plugin BIN folder is: $PBIN"
 
-
-
 cp -b $PDATA/cupsd.conf /etc/cups/cupsd.conf
 usermod -aG lpadmin loxberry
+
 # Exit with Status 0
 exit 0
