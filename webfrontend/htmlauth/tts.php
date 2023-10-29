@@ -8,7 +8,7 @@ header('Content-Type: text/plain');
 $sock = null;
 $mqttcred = null;
 
-if( !isset($email) or !isset($password) ) {
+if( !isset($refresh_token) ) {
 	http_response_code(500);
 	echo "Configfile amazon.cfg not found, empty or invalid";
 	exit(1);

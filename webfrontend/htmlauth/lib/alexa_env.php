@@ -13,6 +13,7 @@ define('TOPIC', 'alexa2lox');
 $email = null;
 $password = null;
 $token = null;
+$refresh_token = null;
 $use_oath = null;
 $listDelimiter = null; 
 read_amazon_creds();
@@ -21,7 +22,7 @@ read_amazon_creds();
 function read_amazon_creds() 
 {
 
-	global $email, $password, $token, $use_oath, $listDelimiter;
+	global $email, $password, $token, $use_oath, $listDelimiter, $refresh_token;
 	 
 	// Set alexa_remote_control environments
 
@@ -44,7 +45,12 @@ function read_amazon_creds()
 			}
 			elseif (strtolower($param) == 'token' ) {
 				$token = $value;
-				error_log("token: $token");
+				error_log("Token: $token");
+				continue;
+			}
+			elseif (strtolower($param) == 'refresh_token' ) {
+				$refresh_token = $value;
+				error_log("Refresh Token: $refresh_token");
 				continue;
 			}
 			elseif (strtolower($param) == 'use_oath' ) {
@@ -64,6 +70,7 @@ function read_amazon_creds()
 		putenv("EMAIL=$email");
 		putenv("PASSWORD=$password");
 		putenv("LANGUAGE='de,en-US;q=0.7,en;q=0.3'");
+		putenv('REFRESH_TOKEN=' . $refresh_token . '');
 		if( $use_oath ) {
 			putenv('OATHTOOL=/usr/bin/oathtool');
 			putenv('MFA_SECRET=' . $token . '');

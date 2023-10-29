@@ -96,14 +96,16 @@ if [ "${ALEXA2LOXENV}" != "php" ]; then
 	PASSWORD=$( grep 'Passwort=' $LBPCONFIGDIR/amazon.cfg |/bin/sed 's/Passwort=//g'  )
 	USE_OATH=$( grep 'use_oath=' $LBPCONFIGDIR/amazon.cfg |/bin/sed 's/use_oath=//g'  )
 	if [ "$USE_OATH" = "true" ]; then
-		MFA_SECRET=$( grep 'TOKEN=' $LBPCONFIGDIR/amazon.cfg |/bin/sed 's/TOKEN=//g'  )
+		MFA_SECRET=$( grep 'TOKEN=' $LBPCONFIGDIR/amazon.cfg |/bin/sed 's/^TOKEN=//g'  )
 		echo MFA_SECRET $MFA_SECRET
 	fi
+	REFRESH_TOKEN=$( grep 'REFRESH_TOKEN=' $LBPCONFIGDIR/amazon.cfg |/bin/sed 's/^REFRESH_TOKEN=//g'  )
+	echo REFRESH_TOKEN $REFRESH_TOKEN
 	listDelimiter=$( grep 'listDelimiter=' $LBPCONFIGDIR/amazon.cfg |/bin/sed 's/listDelimiter=//g'  )
-	
 	export EMAIL=$EMAIL
 	export PASSWORD=$PASSWORD
 	export MFA_SECRET="$MFA_SECRET"
+	export REFRESH_TOKEN="$REFRESH_TOKEN"
 	export LANGUAGE=de,en-US;q=0.7,en;q=0.3
 else
 	echo Von PHP aufgerufen - Umgebungsvariablen sollten gesetzt sein
@@ -111,7 +113,8 @@ else
 fi  
 
 echo EMAIL: ${EMAIL}
-echo MFA_SECRET:  ${MFA_SECRET}
+echo MFA_SECRET: ${MFA_SECRET}
+echo REFRESH_TOKEN: ${REFRESH_TOKEN}
 echo
 
 # Programmverzweigung

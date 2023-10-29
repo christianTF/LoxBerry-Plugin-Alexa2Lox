@@ -3,15 +3,18 @@ require_once "loxberry_system.php";
 require_once "lib/alexa_env.php";
        
 $handle = fopen ( LBPCONFIGDIR."/amazon.cfg", "w" );
-    fwrite ( $handle, 'EMAIL=' );
-    fwrite ( $handle, $_POST['EMAIL'] );  
-    fwrite ( $handle, "\n" );
-    fwrite ( $handle, 'Passwort=' );
-    fwrite ( $handle, $_POST['Passwort'] );  
-    fwrite ( $handle, "\n" );
+	fwrite ( $handle, 'EMAIL=' );
+	fwrite ( $handle, $_POST['EMAIL'] );  
+	fwrite ( $handle, "\n" );
+	fwrite ( $handle, 'Passwort=' );
+	fwrite ( $handle, $_POST['Passwort'] );  
+	fwrite ( $handle, "\n" );
+	fwrite ( $handle, 'REFRESH_TOKEN=' );
+	fwrite ( $handle, $_POST['Refresh_Token'] );  
+	fwrite ( $handle, "\n" );
 	fwrite ( $handle, 'TOKEN=' );
-    fwrite ( $handle, $_POST['Token'] );  
-    fwrite ( $handle, "\n" );
+	fwrite ( $handle, $_POST['Token'] );  
+	fwrite ( $handle, "\n" );
 	fwrite ( $handle, 'use_oath=' );
 	if( is_enabled($_POST['cred_selection']) ) {
 		fwrite ( $handle, 'true' );

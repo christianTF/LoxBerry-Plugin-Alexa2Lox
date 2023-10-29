@@ -2,6 +2,6 @@
 . REPLACELBPHTMLAUTHDIR/_plugindirs.sh
 cd $LBPHTMLAUTHDIR
 sleep 10
- ./start.sh --original -a
+./start.sh --original -a
  
  
