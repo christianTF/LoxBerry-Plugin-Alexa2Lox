@@ -34,8 +34,8 @@ if(isset($_GET['text'])) {
    umlauts.
 */
 
-$toreplace = array( 'Ö', 'ö', 'Ü', 'ü', 'Ä', 'ä', 'ß', '°' );
-$replacewith = array( 'Oe', 'oe', 'Ue', 'ue', 'Ae', 'ae', 'ss', ' Grad' );
+$toreplace = array( 'ß', '°' );
+$replacewith = array( 'ss', ' Grad' );
 $ttstext = str_replace( $toreplace, $replacewith, $text );
 
 echo "Incoming Text: $text\n";
