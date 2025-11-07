@@ -79,6 +79,13 @@
 #               -lastalexa now returns this string. Make sure to put the device in double quotes!
 # 2022-02-04: v0.20d minor volume fix (write volume to volume cache when volume is changed)
 # 2022-06-29: v0.20e removed call to jq's strptime function, replaced with bash function using 'date' to convert to epoch
+# 2024-01-29: v0.21 removed legacy login methods as they were no longer working
+#                   implemented new API calls for -lastalexa and -lastcommand
+#                   there is now an OS-type switch that hopefully handles OSX and BSD date creation
+# 2024-01-31: v0.21a trying all different date options which come to mind (first working wins)
+# 2024-02-01: v0.21b changed the output of -lastalexa back to the output of devicelist.txt
+# 2024-04-06: v0.22 changed the date calculation once again, now the date processing ignores the actual cookie validity
+#                    and simply sets it to "now + COOKIE_LIFETIME"
 #
 ###
 #
@@ -87,22 +94,12 @@
 # - (GNU) sed and awk for extraction
 # - jq as command line JSON parser (optional for the fancy bits)
 # - base64 for B64 encoding (make sure "-w 0" option is available on your platform)
-# - oathtool as OATH one-time password tool (optional for two-factor authentication)
 #
 ##########################################
 
-SET_EMAIL='amazon_account@email.address'
-SET_PASSWORD='Very_Secret_Amazon_Account_Password'
-SET_MFA_SECRET=''
-# something like:
-#  1234 5678 9ABC DEFG HIJK LMNO PQRS TUVW XYZ0 1234 5678 9ABC DEFG
-
 # this can be obtained by doing the device registration login flow
-#  e.g. from here: https://github.com/Apollon77/alexa-cookie/
+#  e.g. from here: https://github.com/adn77/alexa-cookie-cli/
 SET_REFRESH_TOKEN=''
-
-SET_LANGUAGE='de,en-US;q=0.7,en;q=0.3'
-#SET_LANGUAGE='en-US'
 
 SET_TTS_LOCALE='de-DE'
 
@@ -125,9 +122,6 @@ SET_OPTS='--compressed --http1.1'
 # browser identity
 SET_BROWSER='Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:1.0) bash-script/1.0'
 #SET_BROWSER='Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:65.0) Gecko/20100101 Firefox/65.0'
-
-# oathtool command line tool
-SET_OATHTOOL='/usr/bin/oathtool'
 
 # jq binary
 SET_JQ='/usr/bin/jq'
@@ -156,19 +150,14 @@ SET_VOLMAXAGE="1"
 #
 
 # retrieving environment variables if any are set
-EMAIL=${EMAIL:-$SET_EMAIL}
-PASSWORD=${PASSWORD:-$SET_PASSWORD}
-MFA_SECRET=${MFA_SECRET:-$SET_MFA_SECRET}
 REFRESH_TOKEN=${REFRESH_TOKEN:-$SET_REFRESH_TOKEN}
 AMAZON=${AMAZON:-$SET_AMAZON}
 ALEXA=${ALEXA:-$SET_ALEXA}
-LANGUAGE=${LANGUAGE:-$SET_LANGUAGE}
 BROWSER=${BROWSER:-$SET_BROWSER}
 CURL=${CURL:-$SET_CURL}
 OPTS=${OPTS:-$SET_OPTS}
 TTS_LOCALE=${TTS_LOCALE:-$SET_TTS_LOCALE}
 TMP=${TMP:-$SET_TMP}
-OATHTOOL=${OATHTOOL:-$SET_OATHTOOL}
 JQ=${JQ:-$SET_JQ}
 SPEAKVOL=${SPEAKVOL:-$SET_SPEAKVOL}
 NORMALVOL=${NORMALVOL:-$SET_NORMALVOL}
@@ -179,6 +168,7 @@ DEVICEVOLNORMAL=${DEVICEVOLNORMAL:-$SET_DEVICEVOLNORMAL}
 
 COOKIE="${TMP}/.alexa.cookie"
 DEVLIST="${TMP}/.alexa.devicelist"
+COOKIE_LIFETIME=$(( 24 * 60 * 60 )) # default lifetime of one day before revalidation
 
 GUIVERSION=0
 
@@ -249,7 +239,7 @@ usage()
 while [ "$#" -gt 0 ] ; do
 	case "$1" in
 		--version)
-			echo "v0.20d"
+			echo "v0.22 (mod with https://github.com/thorsten-gehrig/alexa-remote-control/issues/189)"
 			exit 0
 			;;
 		-d)
@@ -506,99 +496,31 @@ esac
 #
 log_in()
 {
-################################################################
-#
-# following headers are required:
-#	Accept-Language	(possibly for determining login region)
-#	User-Agent	(cURL wouldn't store cookies without)
-#
-################################################################
-
 rm -f ${DEVLIST}.json
 rm -f ${COOKIE}
 rm -f ${TMP}/.alexa.*.list
 
 if [ -z "${REFRESH_TOKEN}" ] ; then
-	#
-	# get first cookie and write redirection target into referer
-	#
-	${CURL} ${OPTS} -s -D "${TMP}/.alexa.header" -c ${COOKIE} -b ${COOKIE} -A "${BROWSER}" -H "Accept-Language: ${LANGUAGE}" -H "DNT: 1" -H "Connection: keep-alive" -H "Upgrade-Insecure-Requests: 1" -L\
-	 https://alexa.${AMAZON} | grep "hidden" | sed 's/hidden/\n/g' | grep "value=\"" | sed -r 's/^.*name="([^"]+)".*value="([^"]+)".*/\1=\2\&/g' > "${TMP}/.alexa.postdata"
+	echo "Sorry, the very thing this project started with, namely the reverse engineered"
+	echo " login to the Amazon web page does no longer work. The Alexa login page has"
+	echo " been shut down in favor of a much more modern login process."
+	echo
+	echo "Please use the device login process https://github.com/adn77/alexa-cookie-cli"
+	echo " all you need is the 'refreshToken' looking sth. like 'Atnr|...'"
 
-	#
-	# login empty to generate session
-	#
-	${CURL} ${OPTS} -s -c ${COOKIE} -b ${COOKIE} -A "${BROWSER}" -H "Accept-Language: ${LANGUAGE}" -H "DNT: 1" -H "Connection: keep-alive" -H "Upgrade-Insecure-Requests: 1" -L\
-	 -H "$(grep 'Location: ' ${TMP}/.alexa.header | sed 's/Location: /Referer: /')" -d "@${TMP}/.alexa.postdata" https://www.${AMAZON}/ap/signin | grep "hidden" | sed 's/hidden/\n/g' | grep "value=\"" | sed -r 's/^.*name="([^"]+)".*value="([^"]+)".*/\1=\2\&/g' > "${TMP}/.alexa.postdata2"
-
-	#
-	# add OTP if using MFA
-	#
-	if [ -n "${MFA_SECRET}" ] ; then
-		OTP=$(${OATHTOOL} -b --totp "${MFA_SECRET}")
-		PASSWORD="${PASSWORD}${OTP}"
-	fi
-
-	#
-	# login with filled out form
-	#  !!! referer now contains session in URL
-	#
-	${CURL} ${OPTS} -s -D "${TMP}/.alexa.header2" -c ${COOKIE} -b ${COOKIE} -A "${BROWSER}" -H "Accept-Language: ${LANGUAGE}" -H "DNT: 1" -H "Connection: keep-alive" -H "Upgrade-Insecure-Requests: 1" -L\
-	 -H "Referer: https://www.${AMAZON}/ap/signin/$(awk "\$0 ~/.${AMAZON}.*session-id[ \\s\\t]+/ {print \$7}" ${COOKIE})" --data-urlencode "email=${EMAIL}" --data-urlencode "password=${PASSWORD}" -d "@${TMP}/.alexa.postdata2" https://www.${AMAZON}/ap/signin > "${TMP}/.alexa.login"
-
-	# check whether the login has been successful or exit otherwise
-	if [ -z "$(grep 'Location: https://alexa.*html' ${TMP}/.alexa.header2)" ] ; then
-		echo "ERROR: Amazon Login was unsuccessful. Possibly you get a captcha login screen."
-		echo " Try logging in to https://alexa.${AMAZON} with your browser. In your browser"
-		echo " make sure to have all Amazon related cookies deleted and Javascript disabled!"
-		echo
-		echo " (For more information have a look at ${TMP}/.alexa.login)"
-		echo
-		echo " To avoid issues with captcha, try using Multi-Factor Authentication."
-		echo " To do so, first set up Two-Step Verification on your Amazon account, then"
-		echo " configure this script (or the environment) with your MFA secret."
-		echo " Support for Multi-Factor Authentication requires 'oathtool' to be installed."
-
-		rm -f ${COOKIE}
-		rm -f "${TMP}/.alexa.header"
-		rm -f "${TMP}/.alexa.header2"
-		rm -f "${TMP}/.alexa.postdata"
-		rm -f "${TMP}/.alexa.postdata2"
-		exit 1
-	fi
-
-	rm -f "${TMP}/.alexa.login"
-	rm -f "${TMP}/.alexa.header"
-	rm -f "${TMP}/.alexa.header2"
-	rm -f "${TMP}/.alexa.postdata"
-	rm -f "${TMP}/.alexa.postdata2"
+	exit 1
 else
-#	${CURL} ${OPTS} -s -X POST --data "app_name=Amazon%20Alexa&requested_token_type=auth_cookies&domain=www.${AMAZON}&source_token_type=refresh_token" --data-urlencode "source_token=${REFRESH_TOKEN}" -H "x-amzn-identity-auth-domain: api.${AMAZON}" https://api.${AMAZON}/ap/exchangetoken/cookies | ${JQ} -r '.response.tokens.cookies | to_entries[] | .key as $domain | .value[] | map_values(if . == true then "TRUE" elif . == false then "FALSE" else . end) | .Expires |= ( strptime("%d %b %Y %H:%M:%S %Z") | mktime ) | [(if .HttpOnly=="TRUE" then ("#HttpOnly_" + $domain) else $domain end), "TRUE", .Path, .Secure, .Expires, .Name, .Value] | @tsv' > ${COOKIE}
+	now=$(date +%s)
+	exp=$(( now + COOKIE_LIFETIME ))
 
-	# workaround for cookies valid beyond 2038-01-19 on 32-bit systems
-	toEpoch() {
-		local x
-		while read x
-		do
-			echo "$x" | awk '{
-				if ($3 >= 2038) {
-					print "s/"$1" "$2" "$3" "$4" "$5"/2147483647/g"
-				} else {
-					print "s/"$1" "$2" "$3" "$4" "$5"/'"$(date -d "$x" -u +"%s")"'/g"
-				}
-			}'
-		done
-	}
-
-	${CURL} ${OPTS} -s -X POST --data "app_name=Amazon%20Alexa&requested_token_type=auth_cookies&domain=www.${AMAZON}&source_token_type=refresh_token" --data-urlencode "source_token=${REFRESH_TOKEN}" -H "x-amzn-identity-auth-domain: api.${AMAZON}" https://api.${AMAZON}/ap/exchangetoken/cookies > ${COOKIE}.json
-	sed -e "$(cat ${COOKIE}.json | ${JQ} -r '.response.tokens.cookies | to_entries[] | .key as $domain | .value[] | .Expires' | toEpoch)" ${COOKIE}.json |\
-	 ${JQ} -r '.response.tokens.cookies | to_entries[] | .key as $domain | .value[] | map_values(if . == true then "TRUE" elif . == false then "FALSE" else . end) | [(if .HttpOnly=="TRUE" then ("#HttpOnly_" + $domain) else $domain end), "TRUE", .Path, .Secure, .Expires, .Name, .Value] | @tsv' > ${COOKIE}
+	# the date processing ignores the actual cookie validity and simply sets it to "now + COOKIE_LIFETIME"
+	${CURL} ${OPTS} -s -X POST --data "app_name=Amazon%20Alexa&requested_token_type=auth_cookies&domain=www.${AMAZON}&source_token_type=refresh_token" --data-urlencode "source_token=${REFRESH_TOKEN}" -H "x-amzn-identity-auth-domain: api.${AMAZON}" https://api.${AMAZON}/ap/exchangetoken/cookies |\
+	 ${JQ} -r --arg exp $exp '.response.tokens.cookies | to_entries[] | .key as $domain | .value[] | map_values(if . == true then "TRUE" elif . == false then "FALSE" else . end) | .Expires |= $exp | [(if .HttpOnly=="TRUE" then ("#HttpOnly_" + $domain) else $domain end), "TRUE", .Path, .Secure, .Expires, .Name, .Value] | @tsv' > ${COOKIE}
 
 	if [ -z "$(grep "\.${AMAZON}.*\sat-" ${COOKIE})" ] ; then
 		echo "ERROR: cookie retrieval with refresh_token didn't work"
 		exit 1
 	fi
-	rm -rf ${COOKIE}.json
 fi
 
 #
@@ -649,12 +571,15 @@ check_status()
 # bootstrap with GUI-Version writes GUI version to cookie
 #  returns among other the current authentication state
 #
-	AUTHSTATUS=$(${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep-alive" -L https://${ALEXA}/api/bootstrap?version=${GUIVERSION})
-	MEDIAOWNERCUSTOMERID=$(echo $AUTHSTATUS | sed -r 's/^.*"customerId":"([^,]+)",.*$/\1/g')
-	AUTHSTATUS=$(echo $AUTHSTATUS | sed -r 's/^.*"authenticated":([^,]+),.*$/\1/g')
+	#AUTHSTATUS=$(${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep-alive" -L https://${ALEXA}/api/bootstrap?version=${GUIVERSION})
+	AUTHSTATUS=$(${CURL} ${OPTS} -s -b ${COOKIE} -o /dev/null -s -w "%{http_code}" -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep-alive" -L https://${ALEXA}/api/customer-status)
+	#echo $AUTHSTATUS
+	#MEDIAOWNERCUSTOMERID=$(echo $AUTHSTATUS | sed -r 's/^.*"customerId":"([^,]+)",.*$/\1/g')
+	#AUTHSTATUS=$(echo $AUTHSTATUS | sed -r 's/^.*"authenticated":([^,]+),.*$/\1/g')
+	MEDIAOWNERCUSTOMERID=$(${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep-alive" -L "https://${ALEXA}/api/users/me?platform=ios&version=2.2.651540.0" | jq -r .id)
 
-	if [ "$AUTHSTATUS" = "true" ] ; then
-		return 1
+	if [ "$AUTHSTATUS" != "401" ] ; then
+	        return 1
 	fi
 
 	return 0
@@ -1190,33 +1115,63 @@ ${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep
 }
 
 #
-# device that sent the last command
-# (by Markus Wennesheimer)
+# get activity CSRF token
 #
-last_alexa()
+get_activity_csrf()
 {
-${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep-alive" -L\
- -H "Content-Type: application/json; charset=UTF-8" -H "Referer: https://alexa.${AMAZON}/spa/index.html" -H "Origin: https://alexa.${AMAZON}"\
- -H "csrf: $(awk "\$0 ~/.${AMAZON}.*csrf[ \\s\\t]+/ {print \$7}" ${COOKIE})" -X GET\
- "https://${ALEXA}/api/activities?startTime=&size=10&offset=1" | ${JQ} -r '[.activities[] | select( .activityStatus == "SUCCESS" )][0] | .sourceDeviceIds[0].serialNumber' | xargs -i grep -m 1 {} ${DEVLIST}.txt
+	${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep-alive" -L\
+ 	 -H "Content-Type: application/json; charset=UTF-8" \
+ 	 -H "csrf: $(awk "\$0 ~/.${AMAZON}.*csrf[ \\s\\t]+/ {print \$7}" ${COOKIE})" -X GET\
+	 "https://www.${AMAZON}/alexa-privacy/apd/activity?ref=activityHistory" | grep 'meta name="csrf-token" content="' | sed -r 's/^.*content="([^"]+)".*$/\1/g' > ${TMP}/.alexa.activity.csrf
 }
 
 #
+# get customer history records
+#
+get_history()
+{
+	if ! [ -f ${TMP}/.alexa.activity.csrf ] ; then
+		get_activity_csrf
+	fi
+
+	RES=$(${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep-alive" -L -w "%{http_code}" \
+	 	 -H "Content-Type: application/json; charset=UTF-8" -H "anti-csrftoken-a2z: $(cat ${TMP}/.alexa.activity.csrf)" \
+	 	 -H "csrf: $(awk "\$0 ~/.${AMAZON}.*csrf[ \\s\\t]+/ {print \$7}" ${COOKIE})" -X POST -d '{"previousRequestToken": null}'\
+		 "https://www.${AMAZON}/alexa-privacy/apd/rvh/customer-history-records-v2/?startTime=0&endTime=2147483647000&pageType=VOICE_HISTORY" -o ${TMP}/.alexa.activity.json)
+
+	# try again in case CSRF timed out
+	if [ $RES -ne 200 ] ; then
+		if [ -z "${try}" ] ; then
+			try=1
+			rm -f ${TMP}/.alexa.activity.csrf
+			get_history
+		else
+			echo "ERROR: unable to retrieve customer history records"
+			exit 1
+		fi
+	fi
+}
+
+#
+# device that sent the last command
+#
+last_alexa()
+{
+	get_history
+	${JQ} -r '.customerHistoryRecords | sort_by(.timestamp) | reverse | .[0] | .recordKey' ${TMP}/.alexa.activity.json | cut -d'#' -f4 | xargs -i grep -m 1 {} ${DEVLIST}.txt
+}
+#
 # last command or last command of a specific device
-# (by Trinitus01)
 #
 last_command()
 {
-SERIALNUMBER=$(${JQ} -r --arg device "$DEVICE" '.devices[] | select( .accountName == $device ) | .serialNumber' ${DEVLIST}.json)
-ACTIVITIES=$(${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep-alive" -L\
- -H "Content-Type: application/json; charset=UTF-8" -H "Referer: https://alexa.${AMAZON}/spa/index.html" -H "Origin: https://alexa.${AMAZON}"\
- -H "csrf: $(awk "\$0 ~/.${AMAZON}.*csrf[ \\s\\t]+/ {print \$7}" ${COOKIE})" -X GET\
- "https://${ALEXA}/api/activities?startTime=&size=10&offset=1")
-if [ -z "$DEVICE" ] ; then
-	echo "$ACTIVITIES" | ${JQ} -r '[.activities[] | select( .activityStatus == "SUCCESS" )][0] | .description' | ${JQ} -r .summary
-else
-	echo "$ACTIVITIES" | ${JQ} -r --arg serialnumber "$SERIALNUMBER" '[.activities[] | select( .activityStatus == "SUCCESS" ) | select( .sourceDeviceIds[].serialNumber == $serialnumber)][0] | .description' | ${JQ} -r .summary
-fi
+	get_history
+
+	if [ -z "$DEVICE" ] ; then
+		${JQ} -r --arg device "$DEVICE" '.customerHistoryRecords | sort_by(.timestamp) | reverse | .[0] | .voiceHistoryRecordItems | map({key: .recordItemType, value: .transcriptText})' ${TMP}/.alexa.activity.json
+	else
+		${JQ} -r --arg device "$DEVICE" '[ .customerHistoryRecords | sort_by(.timestamp) | reverse | .[] | select( .device.deviceName == $device) ][0] | .voiceHistoryRecordItems | map({key: .recordItemType, value: .transcriptText})' ${TMP}/.alexa.activity.json
+	fi
 }
 
 #
