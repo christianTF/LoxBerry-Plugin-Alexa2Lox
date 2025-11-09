@@ -62,5 +62,11 @@ echo "<INFO> Plugin BIN folder is: $PBIN"
 cp -b $PDATA/cupsd.conf /etc/cups/cupsd.conf
 usermod -aG lpadmin loxberry
 
+echo "<INFO> Installing newest Lötzimmer Skript..."
+cd $LBPHTMLAUTH/$PDIR
+mv alexa_remote_control.sh  alexa_remote_control.sh.pluginorig
+wget https://raw.githubusercontent.com/thorsten-gehrig/alexa-remote-control/refs/heads/master/alexa_remote_control.sh
+chmod +x alexa_remote_control.sh
+
 # Exit with Status 0
 exit 0
